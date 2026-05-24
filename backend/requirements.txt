@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+scapy
+redis
+psycopg2-binary
+pandas
