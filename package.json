@@ -1,0 +1,27 @@
+{
+  "name": "ai_network_intelligence_system",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rehan1604/AI_NETWORK_INTELLIGENCE_SYSTEM.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Rehan1604/AI_NETWORK_INTELLIGENCE_SYSTEM/issues"
+  },
+  "homepage": "https://github.com/Rehan1604/AI_NETWORK_INTELLIGENCE_SYSTEM#readme",
+  "devDependencies": {
+    "eslint": "^10.4.0"
+  }
+}
