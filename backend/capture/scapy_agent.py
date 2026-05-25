@@ -7,10 +7,15 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 
 logger = logging.getLogger(__name__)
 
-INTERFACE = None
+# Mininet Open vSwitch interfaces
+INTERFACE = ["s1-eth1", "s1-eth2", "s1-eth3", "s1-eth4"]
 
 
 def extract_packet_data(pkt):
+    """
+    Extract key packet metadata.
+    Returns None if packet has no IP layer.
+    """
 
     if IP not in pkt:
         return None
@@ -47,6 +52,9 @@ def extract_packet_data(pkt):
 
 
 def packet_callback(pkt):
+    """
+    Called for every captured packet.
+    """
 
     data = extract_packet_data(pkt)
 
@@ -56,7 +64,10 @@ def packet_callback(pkt):
 
 def main():
 
-    logger.info("Starting packet capture...")
+    logger.info(f"Starting packet capture on interfaces: {INTERFACE}")
+
+    logger.info("Press Ctrl+C to stop")
+
     sniff(
         iface=INTERFACE, prn=packet_callback, store=False, filter="ip and not port 22"
     )
