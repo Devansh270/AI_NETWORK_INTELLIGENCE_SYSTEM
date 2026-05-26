@@ -1,77 +1,187 @@
-import json
-import logging
+import threading
+import time
 from datetime import datetime, timezone
-from scapy.all import sniff, IP, TCP, UDP, ICMP
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+import httpx
 
-logger = logging.getLogger(__name__)
+from scapy.all import sniff, IP, TCP, UDP, ICMP, get_if_list
 
-# Mininet Open vSwitch interfaces
-INTERFACE = ["s1-eth1", "s1-eth2", "s1-eth3", "s1-eth4"]
+# ─────────────────────────────────────────────────────────────
+# FASTAPI ENDPOINT
+# localhost for local testing
+# fastapi for Docker container networking
+# ─────────────────────────────────────────────────────────────
+API_URL = "http://localhost:8000/metrics"
+
+# ─────────────────────────────────────────────────────────────
+# TELEMETRY STATS
+# ─────────────────────────────────────────────────────────────
+stats = {
+    "sent": 0,
+    "failed": 0,
+}
+
+# ─────────────────────────────────────────────────────────────
+# SHOW AVAILABLE INTERFACES
+# ─────────────────────────────────────────────────────────────
+print("[agent] Available interfaces:")
+print(get_if_list())
+
+# CHANGE THIS TO YOUR ACTUAL INTERFACE
+# Example:
+# "Wi-Fi"
+# "Ethernet"
+INTERFACE = "Wi-Fi"
 
 
-def extract_packet_data(pkt):
-    """
-    Extract key packet metadata.
-    Returns None if packet has no IP layer.
-    """
+# ─────────────────────────────────────────────────────────────
+# LOG STATS EVERY 60 SECONDS
+# ─────────────────────────────────────────────────────────────
+def log_stats():
+
+    while True:
+
+        time.sleep(60)
+
+        print(
+            f"[agent] 1m summary: "
+            f"{stats['sent']} packets sent, "
+            f"{stats['failed']} failed",
+            flush=True,
+        )
+
+        stats["sent"] = 0
+        stats["failed"] = 0
+
+
+# Background telemetry thread
+threading.Thread(
+    target=log_stats,
+    daemon=True,
+).start()
+
+
+# ─────────────────────────────────────────────────────────────
+# PACKET → JSON PAYLOAD
+# ─────────────────────────────────────────────────────────────
+def packet_to_payload(pkt):
 
     if IP not in pkt:
         return None
 
-    ip_layer = pkt[IP]
-
-    proto = "OTHER"
-    src_port = None
-    dst_port = None
-
     if TCP in pkt:
+
         proto = "TCP"
-        src_port = pkt[TCP].sport
-        dst_port = pkt[TCP].dport
+
+        sport = pkt[TCP].sport
+        dport = pkt[TCP].dport
 
     elif UDP in pkt:
+
         proto = "UDP"
-        src_port = pkt[UDP].sport
-        dst_port = pkt[UDP].dport
+
+        sport = pkt[UDP].sport
+        dport = pkt[UDP].dport
 
     elif ICMP in pkt:
+
         proto = "ICMP"
 
+        sport = 0
+        dport = 0
+
+    else:
+
+        proto = "OTHER"
+
+        sport = 0
+        dport = 0
+
     return {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "src_ip": ip_layer.src,
-        "dst_ip": ip_layer.dst,
-        "src_port": src_port,
-        "dst_port": dst_port,
+        "src_ip": pkt[IP].src,
+        "dst_ip": pkt[IP].dst,
+        "src_port": sport,
+        "dst_port": dport,
         "protocol": proto,
         "packet_length": len(pkt),
-        "ttl": ip_layer.ttl,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
-def packet_callback(pkt):
-    """
-    Called for every captured packet.
-    """
+# ─────────────────────────────────────────────────────────────
+# HANDLE PACKET
+# ─────────────────────────────────────────────────────────────
+def handle_packet(pkt):
 
-    data = extract_packet_data(pkt)
+    payload = packet_to_payload(pkt)
 
-    if data:
-        print(json.dumps(data))
+    if payload is None:
+        return
+
+    try:
+
+        # timeout prevents packet capture freezing
+        with httpx.Client(timeout=2.0) as client:
+
+            response = client.post(
+                API_URL,
+                json=payload,
+            )
+
+            if response.status_code == 201:
+
+                stats["sent"] += 1
+
+            else:
+
+                stats["failed"] += 1
+
+                print(
+                    f"[agent][warn] " f"API returned " f"{response.status_code}",
+                    flush=True,
+                )
+
+    except httpx.ConnectError:
+
+        stats["failed"] += 1
+
+        print(
+            "[agent][warn] " "FastAPI unreachable, " "skipping packet",
+            flush=True,
+        )
+
+    except httpx.TimeoutException:
+
+        stats["failed"] += 1
+
+        print(
+            "[agent][warn] " "FastAPI timeout, " "skipping packet",
+            flush=True,
+        )
 
 
-def main():
+# ─────────────────────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────────────────────
+if __name__ == "__main__":
 
-    logger.info(f"Starting packet capture on interfaces: {INTERFACE}")
-
-    logger.info("Press Ctrl+C to stop")
-
-    sniff(
-        iface=INTERFACE, prn=packet_callback, store=False, filter="ip and not port 22"
+    print(
+        "[agent] Starting packet capture...",
+        flush=True,
     )
 
+    print(
+        f"[agent] Posting to {API_URL}",
+        flush=True,
+    )
 
-if __name__ == "__main__":
-    main()
+    print(
+        f"[agent] Capturing on interface: {INTERFACE}",
+        flush=True,
+    )
+
+    sniff(
+        iface=INTERFACE,
+        prn=handle_packet,
+        store=False,
+    )
