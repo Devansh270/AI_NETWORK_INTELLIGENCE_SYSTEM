@@ -1,24 +1,22 @@
-from datetime import datetime
-from sqlalchemy import String, Float, DateTime, Enum
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Column, String, Integer, DateTime, Enum
 from app.models.base import Base
-import enum
+from datetime import datetime
+import uuid, enum
 
-class AlertSeverity(str, enum.Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    CRITICAL = "critical"
+
+
+class SeverityEnum(str, enum.Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
 
 class Alert(Base):
     __tablename__ = "alerts"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    severity: Mapped[AlertSeverity] = mapped_column(Enum(AlertSeverity))
-    message: Mapped[str] = mapped_column(String(500))
-    source_ip: Mapped[str | None] = mapped_column(String(45))
-    dst_ip: Mapped[str | None] = mapped_column(String(45))
-    protocol: Mapped[str | None] = mapped_column(String(10))
-    resolved: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String(255), nullable=False)
+    description = Column(String(1000))
+    severity = Column(Enum(SeverityEnum), nullable=False)
+    source_ip = Column(String(45))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    resolved = Column(Integer, default=0)  # 0 = open, 1 = resolved

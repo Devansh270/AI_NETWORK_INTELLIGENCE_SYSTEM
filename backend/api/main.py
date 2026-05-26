@@ -19,6 +19,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from app.api.alerts import router as alerts_router
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -125,4 +126,4 @@ async def ingest_metric(metric: Metric):
 # ---------------------------------------------------------------------------
 # Bhavya's slice — Alert CRUD endpoints will be added here
 # ---------------------------------------------------------------------------
-# (Bhavya will add GET /alerts and POST /alerts below this line)
+app.include_router(alerts_router)
