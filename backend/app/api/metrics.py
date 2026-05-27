@@ -4,6 +4,7 @@ from app.core.influx import get_influx_write_api
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
+
 @router.post("", status_code=201)
 async def ingest_metric(metric: NetworkMetric):
     write_api = get_influx_write_api()
