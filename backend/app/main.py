@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import alerts, metrics
+from app.api.websocket_routes import router as ws_router
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -72,6 +73,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 app.include_router(alerts.router)   # exposes /alerts (Bhavya)
 app.include_router(metrics.router)  # exposes /metrics (Devansh)
+app.include_router(ws_router)       # exposes /ws/metrics
 
 
 # ---------------------------------------------------------------------------
