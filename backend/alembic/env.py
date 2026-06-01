@@ -3,22 +3,23 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 from app.models.base import Base
 from app.models.alert import Alert
-from app.core.db import DATABASE_URL
+import os
+from dotenv import load_dotenv
 
-# Convert async URL to sync for Alembic
-SYNC_DATABASE_URL = DATABASE_URL.replace("+asyncpg", "")
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../infra/.env'))
 
-# config must be defined BEFORE using it
+POSTGRES_USER = os.getenv("POSTGRES_USER", "ainis")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "ainis_dev")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "ainis")
+
+SYNC_DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@localhost:5432/{POSTGRES_DB}"
+
 config = context.config
-
-# Set the sync URL
 config.set_main_option('sqlalchemy.url', SYNC_DATABASE_URL)
 
-# Logging setup
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Metadata for autogenerate
 target_metadata = Base.metadata
 
 
