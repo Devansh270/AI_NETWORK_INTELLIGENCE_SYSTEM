@@ -1,0 +1,3 @@
+INFO:     127.0.0.1:59837 - "POST /metrics HTTP/1.1" 201 Created
+INFO:     127.0.0.1:59839 - "POST /metrics HTTP/1.1" 201 Created
+INFO:     127.0.0.1:59841 - "GET /health HTTP/1.1" 200 OK

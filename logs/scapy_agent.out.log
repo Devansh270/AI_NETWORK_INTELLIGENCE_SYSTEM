@@ -1,0 +1,5 @@
+[agent] Available interfaces:
+['\\Device\\NPF_{85000778-2CC8-434F-850C-FD8216909387}', '\\Device\\NPF_{5A13AD17-E5B6-416F-9A9B-C90CBB941390}', '\\Device\\NPF_{ABDCDF70-3658-4A95-B6AF-D50D7D8613CA}', '\\Device\\NPF_{25C137A2-6211-4FBE-ACAB-7F92776DFBF4}', '\\Device\\NPF_{AAA0A021-CC6A-4B97-AD7D-CDA3FB3F30DC}', '\\Device\\NPF_{7C49CC15-3F05-4D5E-8FF1-96D6552FF25A}', '\\Device\\NPF_Loopback']
+[agent] Starting packet capture...
+[agent] Posting to http://localhost:8000/metrics
+[agent] Capturing on interface: \Device\NPF_{25C137A2-6211-4FBE-ACAB-7F92776DFBF4}

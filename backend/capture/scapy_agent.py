@@ -1,17 +1,18 @@
+import os
 import threading
 import time
 from datetime import datetime, timezone
 
 import httpx
 
-from scapy.all import sniff, IP, TCP, UDP, ICMP, get_if_list
+from scapy.all import sniff, IP, TCP, UDP, ICMP, conf, get_if_list
 
 # ─────────────────────────────────────────────────────────────
 # FASTAPI ENDPOINT
 # localhost for local testing
 # fastapi for Docker container networking
 # ─────────────────────────────────────────────────────────────
-API_URL = "http://localhost:8000/metrics"
+API_URL = os.getenv("AINIS_API_URL", "http://localhost:8000/metrics")
 
 # ─────────────────────────────────────────────────────────────
 # TELEMETRY STATS
@@ -27,11 +28,17 @@ stats = {
 print("[agent] Available interfaces:")
 print(get_if_list())
 
-# CHANGE THIS TO YOUR ACTUAL INTERFACE
-# Example:
-# "Wi-Fi"
-# "Ethernet"
-INTERFACE = "Wi-Fi"
+
+def choose_interface():
+    """Use Scapy's active route interface unless AINIS_INTERFACE is set."""
+    configured_interface = os.getenv("AINIS_INTERFACE")
+    if configured_interface:
+        return configured_interface
+
+    return conf.iface
+
+
+INTERFACE = choose_interface()
 
 
 # ─────────────────────────────────────────────────────────────
