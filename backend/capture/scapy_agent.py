@@ -2,6 +2,8 @@ import os
 import threading
 import time
 from datetime import datetime, timezone
+import redis
+import json
 
 import httpx
 
@@ -14,6 +16,20 @@ from scapy.all import sniff, IP, TCP, UDP, ICMP, conf, get_if_list
 # ─────────────────────────────────────────────────────────────
 API_URL = os.getenv("AINIS_API_URL", "http://localhost:8000/metrics")
 
+# ─────────────────────────────────────────────────────────────
+# REDIS CLIENT
+# ─────────────────────────────────────────────────────────────
+try:
+    redis_client = redis.Redis(
+        host=os.getenv("REDIS_HOST", "localhost"),
+        port=6379,
+        decode_responses=True
+    )
+    redis_client.ping()
+    print("[agent] Redis connected", flush=True)
+except Exception as e:
+    redis_client = None
+    print(f"[agent][warn] Redis unavailable: {e}", flush=True)
 # ─────────────────────────────────────────────────────────────
 # TELEMETRY STATS
 # ─────────────────────────────────────────────────────────────
@@ -165,6 +181,14 @@ def handle_packet(pkt):
             "[agent][warn] " "FastAPI timeout, " "skipping packet",
             flush=True,
         )
+    
+    # Publish to Redis pub/sub
+    try:
+        if redis_client:
+            redis_client.publish('packets', json.dumps(payload))
+            print("[Redis] Published packet to channel: packets", flush=True)
+    except Exception as e:
+        print(f"[agent][warn] Redis publish failed: {e}", flush=True)
 
 
 # ─────────────────────────────────────────────────────────────
