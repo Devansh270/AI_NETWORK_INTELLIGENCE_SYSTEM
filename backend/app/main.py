@@ -81,13 +81,13 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Register API Routers
 # ---------------------------------------------------------------------------
-feat/endpoints
+
 app.include_router(alerts.router)   # exposes /alerts (Bhavya)
 app.include_router(metrics.router)  # exposes /metrics (Devansh)
 app.include_router(ws_router)       # exposes /ws/metrics
 app.include_router(alerts.router)
 app.include_router(metrics.router)
-develop
+
 
 
 # ---------------------------------------------------------------------------
@@ -111,7 +111,6 @@ async def root():
 # ---------------------------------------------------------------------------
 @app.get("/health")
 async def health_check():
-feat/endpoints
     """Liveness probe. Returns 200 OK if the API process is alive."""
     return {"status": "ok", "service": "ainis-api"}
 
@@ -164,4 +163,4 @@ async def websocket_metrics(websocket: WebSocket):
 
     finally:
         logger.info("WebSocket client disconnected")
-develop
+
