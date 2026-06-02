@@ -1,29 +1,33 @@
-import { Link } from "react-router-dom";
+import { NavLink } from 'react-router-dom'
+
+const navItems = [
+  { label: 'Dashboard',  to: '/',          icon: '📊' },
+  { label: 'Topology',   to: '/topology',  icon: '🔗' },
+  { label: 'Alerts',     to: '/alerts',    icon: '🔔' },
+  { label: 'Routing',    to: '/routing',   icon: '🔀' },
+]
 
 export default function Sidebar() {
   return (
-    <div className="w-64 h-screen bg-gray-900 text-white p-5">
-      <h1 className="text-2xl font-bold mb-8">
-        AI Network System
-      </h1>
-
-      <nav className="flex flex-col gap-4">
-        <Link to="/" className="hover:text-blue-400">
-          Dashboard
-        </Link>
-
-        <Link to="/topology" className="hover:text-blue-400">
-          Topology
-        </Link>
-
-        <Link to="/alerts" className="hover:text-blue-400">
-          Alerts
-        </Link>
-
-        <Link to="/routing" className="hover:text-blue-400">
-          Routing
-        </Link>
-      </nav>
-    </div>
-  );
+    <aside className="w-56 h-screen bg-gray-900 flex flex-col py-6 px-4 gap-2 fixed left-0 top-0">
+      <div className="text-white font-bold text-lg mb-6 px-2">AINIS</div>
+      {navItems.map(item => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.to === '/'}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
+              isActive
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+            }`
+          }
+        >
+          <span>{item.icon}</span>
+          {item.label}
+        </NavLink>
+      ))}
+    </aside>
+  )
 }

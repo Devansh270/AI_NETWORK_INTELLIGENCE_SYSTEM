@@ -1,9 +1,3 @@
-export default function Topology() {
-  return (
-    <div>
-      <h1 className="text-4xl font-bold text-green-500">
-        Topology Page
-      </h1>
-    </div>
-  );
+export default function TopologyPage() {
+  return <div className="text-white">Topology — graph renders here</div>
 }

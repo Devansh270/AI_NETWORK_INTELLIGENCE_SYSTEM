@@ -1,9 +1,3 @@
-export default function Alerts() {
-  return (
-    <div>
-      <h1 className="text-4xl font-bold text-red-500">
-        Alerts Page
-      </h1>
-    </div>
-  );
+export default function AlertsPage() {
+  return <div className="text-white">Alerts — table renders here</div>
 }

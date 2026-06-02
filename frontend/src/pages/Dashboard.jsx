@@ -1,9 +1,3 @@
-export default function Dashboard() {
-  return (
-    <div>
-      <h1 className="text-4xl font-bold text-blue-500">
-        Dashboard Page
-      </h1>
-    </div>
-  );
+export default function DashboardPage() {
+  return <div className="text-white">Dashboard — charts render here</div>
 }

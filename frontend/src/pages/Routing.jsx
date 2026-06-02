@@ -1,9 +1,3 @@
-export default function Routing() {
-  return (
-    <div>
-      <h1 className="text-4xl font-bold text-purple-500">
-        Routing Page
-      </h1>
-    </div>
-  );
+export default function RoutingPage() {
+  return <div className="text-white">Routing — rules table here</div>
 }
