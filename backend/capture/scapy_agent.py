@@ -44,7 +44,6 @@ stats = {
 print("[agent] Available interfaces:")
 print(get_if_list())
 
-
 def choose_interface():
     """Use Scapy's active route interface unless AINIS_INTERFACE is set."""
     configured_interface = os.getenv("AINIS_INTERFACE")
@@ -55,7 +54,6 @@ def choose_interface():
 
 
 INTERFACE = choose_interface()
-
 
 # ─────────────────────────────────────────────────────────────
 # LOG STATS EVERY 60 SECONDS
