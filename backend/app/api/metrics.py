@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from influxdb_client import Point
 
-from app.models.metrics import NetworkMetric
+from app.models.metrics import NetworkMetric, MetricsSummary
+from app.services.metrics_service import get_metrics_summary
 from app.core.influx import (
     get_influx_bucket,
     get_influx_write_api,
@@ -36,4 +37,17 @@ async def ingest_metric(metric: NetworkMetric):
         write_api.write(bucket=get_influx_bucket(), record=point)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
     return {"status": "written"}
+
+
+@router.get("/summary", response_model=MetricsSummary)
+async def metrics_summary(
+    window: int = Query(default=60, ge=5, le=3600)
+):
+    """
+    Returns aggregated network metrics for the last `window` seconds.
+    Default window: 60 seconds.
+    """
+    data = await get_metrics_summary(window_seconds=window)
+    return MetricsSummary(**data)

@@ -85,8 +85,6 @@ app.add_middleware(
 app.include_router(alerts.router)   # exposes /alerts (Bhavya)
 app.include_router(metrics.router)  # exposes /metrics (Devansh)
 app.include_router(ws_router)       # exposes /ws/metrics
-app.include_router(alerts.router)
-app.include_router(metrics.router)
 
 
 
