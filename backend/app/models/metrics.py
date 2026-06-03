@@ -1,6 +1,15 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Literal
+from pydantic import BaseModel
+
+class MetricsSummary(BaseModel):
+    total_packets:   int
+    total_bytes:     int
+    active_flows:    int
+    packets_per_sec: float
+    bytes_per_sec:   float
+    proto_breakdown: dict[str, int]  # {"TCP": 450, "UDP": 120, "ICMP": 30}
 
 class NetworkMetric(BaseModel):
     src_ip: str = Field(..., example="192.168.1.10")
