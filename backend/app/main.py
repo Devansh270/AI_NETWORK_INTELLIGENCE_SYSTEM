@@ -84,13 +84,12 @@ app.add_middleware(
 
 app.include_router(alerts.router)   # exposes /alerts (Bhavya)
 app.include_router(metrics.router)  # exposes /metrics (Devansh)
-app.include_router(ws_router)       # exposes /ws/metrics
-
+app.include_router(ws_router)       # exposes /ws/metric
 
 
 # ---------------------------------------------------------------------------
 # Root Endpoint
-# ---------------------------------------------------------------------------
+# -----------------------------git add backend/app/main.py----------------------------------------------
 @app.get("/")
 async def root():
     """
@@ -112,53 +111,5 @@ async def health_check():
     """Liveness probe. Returns 200 OK if the API process is alive."""
     return {"status": "ok", "service": "ainis-api"}
 
-    """
-    Liveness probe.
-    Returns 200 OK if the API process is alive.
-    """
 
-    return {
-        "status": "ok",
-        "service": "ainis-api",
-    }
-
-
-# ---------------------------------------------------------------------------
-# WebSocket Endpoint
-# ---------------------------------------------------------------------------
-@app.websocket("/ws/metrics")
-async def websocket_metrics(websocket: WebSocket):
-    """
-    WebSocket endpoint for real-time metrics streaming.
-    """
-
-    # accept websocket connection
-    await websocket.accept()
-
-    logger.info("WebSocket client connected")
-
-    try:
-        while True:
-            # temporary mock packet data
-            packet_data = {
-                "src_ip": "192.168.1.100",
-                "dst_ip": "10.0.0.25",
-                "protocol": "TCP",
-                "packet_size": 512,
-                "status": "live",
-            }
-
-            # send JSON data to frontend
-            await websocket.send_json(packet_data)
-
-            logger.info(f"Sent packet data: {packet_data}")
-
-            # wait before next message
-            await asyncio.sleep(2)
-
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-
-    finally:
-        logger.info("WebSocket client disconnected")
 
