@@ -1,6 +1,9 @@
 import os
+from dotenv import load_dotenv
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.write_api import SYNCHRONOUS
+
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../../infra/.env'), override=True)
 
 _client = None
 _write_api = None
@@ -15,7 +18,7 @@ def influx_is_configured():
 
 
 def get_influx_bucket():
-    return os.getenv("INFLUXDB_BUCKET", "network")
+    return os.getenv("INFLUXDB_BUCKET", "metrics")
 
 
 def get_influx_write_api():
