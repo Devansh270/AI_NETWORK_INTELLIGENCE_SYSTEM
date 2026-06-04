@@ -39,3 +39,4 @@ typing_extensions==4.15.0
 urllib3==2.7.0
 uvicorn==0.48.0
 virtualenv==21.3.3
+pydantic-settings==2.14.1
