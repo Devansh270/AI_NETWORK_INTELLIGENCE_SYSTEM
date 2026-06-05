@@ -15,16 +15,18 @@ from scapy.all import sniff, IP, TCP, UDP, ICMP, conf, get_if_list
 # fastapi for Docker container networking
 # ─────────────────────────────────────────────────────────────
 API_URL = os.getenv("AINIS_API_URL", "http://localhost:8000/metrics")
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+
+print(
+    f"[agent] Using API_URL={API_URL} | REDIS_HOST={REDIS_HOST}",
+    flush=True,
+)
 
 # ─────────────────────────────────────────────────────────────
 # REDIS CLIENT
 # ─────────────────────────────────────────────────────────────
 try:
-    redis_client = redis.Redis(
-        host=os.getenv("REDIS_HOST", "localhost"),
-        port=6379,
-        decode_responses=True
-    )
+    redis_client = redis.Redis(host=REDIS_HOST, port=6379, decode_responses=True)
     redis_client.ping()
     print("[agent] Redis connected", flush=True)
 except Exception as e:
@@ -44,6 +46,7 @@ stats = {
 print("[agent] Available interfaces:")
 print(get_if_list())
 
+
 def choose_interface():
     """Use Scapy's active route interface unless AINIS_INTERFACE is set."""
     configured_interface = os.getenv("AINIS_INTERFACE")
@@ -54,6 +57,7 @@ def choose_interface():
 
 
 INTERFACE = choose_interface()
+
 
 # ─────────────────────────────────────────────────────────────
 # LOG STATS EVERY 60 SECONDS
@@ -179,11 +183,11 @@ def handle_packet(pkt):
             "[agent][warn] " "FastAPI timeout, " "skipping packet",
             flush=True,
         )
-    
+
     # Publish to Redis pub/sub
     try:
         if redis_client:
-            redis_client.publish('packets', json.dumps(payload))
+            redis_client.publish("packets", json.dumps(payload))
             print("[Redis] Published packet to channel: packets", flush=True)
     except Exception as e:
         print(f"[agent][warn] Redis publish failed: {e}", flush=True)
