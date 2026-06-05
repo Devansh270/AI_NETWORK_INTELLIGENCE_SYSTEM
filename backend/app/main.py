@@ -7,18 +7,22 @@ Main entry point for the AINIS backend API. Wires together:
     - Lifespan hooks for startup and shutdown
     - Routers from app/api/ (alerts, metrics)
     - Core endpoints: GET /health, GET /
-    - WebSocket endpoint for real-time metrics streaming
 """
 
-import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+import redis.asyncio as aioredis
 
 from app.api import alerts, metrics
 from app.api.websocket_routes import router as ws_router
+from app.core.db import engine
+from app.core.influx import get_influx_write_api
+from app.core.config import get_settings
+
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -27,7 +31,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
-
 logger = logging.getLogger("ainis.api")
 
 
@@ -39,15 +42,11 @@ async def lifespan(app: FastAPI):
     """
     Startup and shutdown hooks.
 
-    Database engines and InfluxDB clients are initialized lazily on first use
-    (see app/core/db.py and app/core/influx.py), so we don't open connections
-    here. We just log lifecycle events.
+    DB engines and InfluxDB clients init lazily on first use,
+    so we don't open connections here. Just log lifecycle events.
     """
-
     logger.info("AINIS API starting up...")
-
     yield
-
     logger.info("AINIS API shutting down...")
 
 
@@ -70,8 +69,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",  # Vite frontend
-        "http://localhost:3000",  # alternate React port
+        "http://localhost:5173",
+        "http://localhost:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -81,21 +80,17 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Register API Routers
 # ---------------------------------------------------------------------------
-
-app.include_router(alerts.router)   # exposes /alerts (Bhavya)
-app.include_router(metrics.router)  # exposes /metrics (Devansh)
-app.include_router(ws_router)       # exposes /ws/metric
+app.include_router(alerts.router)   # /alerts (Bhavya)
+app.include_router(metrics.router)  # /metrics (Devansh)
+app.include_router(ws_router)       # /ws/metrics
 
 
 # ---------------------------------------------------------------------------
 # Root Endpoint
-# -----------------------------git add backend/app/main.py----------------------------------------------
+# ---------------------------------------------------------------------------
 @app.get("/")
 async def root():
-    """
-    Root endpoint — confirms the server is reachable.
-    """
-
+    """Root endpoint — confirms the server is reachable."""
     return {
         "service": "ainis-api",
         "version": "0.1.0",
@@ -108,8 +103,50 @@ async def root():
 # ---------------------------------------------------------------------------
 @app.get("/health")
 async def health_check():
-    """Liveness probe. Returns 200 OK if the API process is alive."""
-    return {"status": "ok", "service": "ainis-api"}
+    """
+    Health probe.
 
+    Returns 200 OK if the API process is alive, plus the status
+    of each dependent service (Postgres, InfluxDB, Redis).
+    Individual service failures do NOT fail the endpoint —
+    the dashboard uses this to show which services are down.
+    """
+    settings = get_settings()
+    services = {}
 
+    # ─── Postgres check ────────────────────────────────────────
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        services["postgres"] = "up"
+    except Exception as e:
+        logger.warning(f"Postgres health check failed: {e}")
+        services["postgres"] = "down"
 
+    # ─── InfluxDB check ────────────────────────────────────────
+    try:
+        client = get_influx_write_api()
+        services["influxdb"] = "up" if client else "down"
+    except Exception as e:
+        logger.warning(f"InfluxDB health check failed: {e}")
+        services["influxdb"] = "down"
+
+    # ─── Redis check ───────────────────────────────────────────
+    try:
+        r = aioredis.from_url(
+            f"redis://{settings.redis_host}:{settings.redis_port}",
+            socket_connect_timeout=2,
+        )
+        await r.ping()
+        await r.aclose()
+        services["redis"] = "up"
+    except Exception as e:
+        logger.warning(f"Redis health check failed: {e}")
+        services["redis"] = "down"
+
+    return {
+        "status": "ok",
+        "service": "ainis-api",
+        "version": "0.1.0",
+        "services": services,
+    }
