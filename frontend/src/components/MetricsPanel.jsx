@@ -21,8 +21,8 @@ export default function MetricsPanel() {
 
    useEffect(() => {
     if (!lastMessage) return
-    let parsed
-    try { parsed = JSON.parse(lastMessage) } catch { return }
+    const parsed = lastMessage
+    if (!parsed) return
 
     counterRef.current += 1
     const now = Date.now()

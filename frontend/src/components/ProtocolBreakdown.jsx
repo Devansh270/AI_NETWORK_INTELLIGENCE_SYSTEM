@@ -33,10 +33,10 @@ export default function ProtocolBreakdown() {
 
     useEffect(() => {
         if (!lastMessage) return
-        let parsed
-        try { parsed = JSON.parse(lastMessage) } catch { return }
+       const parsed = lastMessage
+if (!parsed) return
 
-        const proto = (parsed.proto ?? 'OTHER').toUpperCase()
+const proto = (parsed.protocol ?? 'OTHER').toUpperCase()
         const key = counts.hasOwnProperty(proto) ? proto : 'OTHER'
         setCounts(prev => ({ ...prev, [key]: prev[key] + 1 }))
     }, [lastMessage])
