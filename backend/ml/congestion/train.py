@@ -22,7 +22,7 @@ def train():
     # Use columns that actually exist in synthetic_traffic.csv
     feature_cols = [
         "packet_rate",
-        "avg_latency_ms",
+        "avg_latency",
         "byte_rate",
         "flow_count",
         "tcp_ratio",

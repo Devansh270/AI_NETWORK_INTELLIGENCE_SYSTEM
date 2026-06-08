@@ -22,6 +22,7 @@ from app.api.websocket_routes import router as ws_router
 from app.core.db import engine
 from app.core.influx import get_influx_write_api
 from app.core.config import get_settings
+from app.api.predictions import router as predictions_router
 
 
 # ---------------------------------------------------------------------------
@@ -150,3 +151,5 @@ async def health_check():
         "version": "0.1.0",
         "services": services,
     }
+
+app.include_router(predictions_router)
