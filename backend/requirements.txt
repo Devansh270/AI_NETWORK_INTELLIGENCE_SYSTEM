@@ -40,3 +40,10 @@ urllib3==2.7.0
 uvicorn==0.48.0
 virtualenv==21.3.3
 pydantic-settings==2.14.1
+xgboost==2.0.3
+scikit-learn==1.4.2
+joblib==1.4.2
+pandas==2.2.2
+numpy==1.26.4
+matplotlib==3.8.4
+seaborn==0.13.2
