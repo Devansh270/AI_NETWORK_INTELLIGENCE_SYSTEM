@@ -1,4 +1,4 @@
-packet_rate,avg_latency_ms,byte_rate,flow_count,tcp_ratio,udp_ratio,icmp_ratio,congested
+packet_rate,avg_latency,byte_rate,flow_count,tcp_ratio,udp_ratio,icmp_ratio,congested
 39.8113,46.6326,739.3272,10,0.6851,0.2289,0.0859,0
 255.885,21.3629,4649.3324,15,0.8434,0.1566,0.0,0
 17.0907,4.6217,20183.7724,13,0.5402,0.2185,0.2413,0
