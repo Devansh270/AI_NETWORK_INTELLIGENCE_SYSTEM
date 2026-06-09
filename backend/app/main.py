@@ -23,6 +23,7 @@ from app.core.db import engine
 from app.core.influx import get_influx_write_api
 from app.core.config import get_settings
 from app.api.predictions import router as predictions_router
+from app.api.anomaly import router as anomaly_router
 
 
 # ---------------------------------------------------------------------------
@@ -153,3 +154,4 @@ async def health_check():
     }
 
 app.include_router(predictions_router)
+app.include_router(anomaly_router)
