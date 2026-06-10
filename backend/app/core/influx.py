@@ -31,3 +31,14 @@ def get_influx_write_api():
         )
         _write_api = _client.write_api(write_options=SYNCHRONOUS)
     return _write_api
+
+def get_influx_client():
+    """Returns the raw InfluxDBClient (needed for query_api in the scheduler)."""
+    global _client
+    if _client is None:
+        _client = InfluxDBClient(
+            url=os.getenv("INFLUXDB_URL", "http://localhost:8086"),
+            token=os.getenv("INFLUXDB_TOKEN"),
+            org=os.getenv("INFLUXDB_ORG"),
+        )
+    return _client
