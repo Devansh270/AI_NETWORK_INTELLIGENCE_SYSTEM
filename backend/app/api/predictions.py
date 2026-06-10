@@ -1,7 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Literal
-
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc
+from fastapi import Depends
+from app.core.db import get_session
+from app.models.prediction import Prediction
 router = APIRouter(prefix="/predict", tags=["predictions"])
 
 
@@ -55,3 +59,21 @@ async def predict_congestion(features: CongestionFeatures):
             status_code=500,
             detail=f"Prediction failed: {str(e)}"
         )
+
+@router.get("/predictions/latest")
+async def get_latest_predictions(db: AsyncSession = Depends(get_session)):
+    result = await db.execute(
+        select(Prediction).order_by(desc(Prediction.created_at)).limit(20)
+    )
+    rows = result.scalars().all()
+    return [
+        {
+            "id":        p.id,
+            "model":     p.model_name,
+            "score":     p.score,
+            "is_alert":  p.binary_output,
+            "severity":  p.severity,
+            "timestamp": p.created_at.isoformat(),
+        }
+        for p in rows
+    ]
