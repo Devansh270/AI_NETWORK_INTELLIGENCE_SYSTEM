@@ -127,8 +127,8 @@ def run_simulation(interactive=False):
     # Start all three traffic flows
     threads = [
         generate_http_traffic(net, duration=300),
-        generate_db_traffic(net, duration=300),
-        generate_bulk_transfer(net, duration=300),
+        # generate_db_traffic(net, duration=300),
+        # generate_bulk_transfer(net, duration=300),
     ]
 
     if interactive:
@@ -144,6 +144,28 @@ def run_simulation(interactive=False):
     info("*** Stopping network\n")
     net.stop()
 
+# backend/capture/mininet_sim.py  — add this section to existing file
+# Add at the bottom of the file, after topology is created
+
+def get_link_interfaces(net):
+    """Return dict of link descriptions to interface names."""
+    interfaces = {}
+    for link in net.links:
+        intf1 = link.intf1.name
+        intf2 = link.intf2.name
+        interfaces[f"{link.intf1.node}-{link.intf2.node}"] = intf1
+    return interfaces
+
+def apply_rules_to_topology(net, rules: list):
+    """Apply a list of routing rules to all links in the Mininet topology."""
+    from capture.qos_manager import apply_qos_rule, clear_qos
+    interfaces = get_link_interfaces(net)
+    for iface_name in interfaces.values():
+        clear_qos(iface_name)
+    for rule in rules:
+        if rule.get("is_active"):
+            for iface_name in interfaces.values():
+                apply_qos_rule(iface_name, rule)
 
 if __name__ == "__main__":
     run_simulation(interactive=True)
