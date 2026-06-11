@@ -21,7 +21,7 @@ from app.api.anomaly import router as anomaly_router
 from app.core.db import engine, AsyncSessionLocal
 from app.core.influx import get_influx_write_api, get_influx_client
 from app.core.config import get_settings
-
+from app.api.routing import router as routing_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -110,7 +110,7 @@ app.include_router(metrics.router)
 app.include_router(ws_router)
 app.include_router(predictions_router)
 app.include_router(anomaly_router)
-
+app.include_router(routing_router)
 
 @app.get("/")
 async def root():
