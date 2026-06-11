@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 from datetime import datetime, timezone
+from app.services.auto_rule_manager import evaluate_rules
 
 logger = logging.getLogger("ainis.scheduler")
 
@@ -43,7 +44,9 @@ async def _query_latest_summary(influx_client, bucket: str, org: str) -> dict | 
         return None
 
 
-async def _query_window(influx_client, bucket: str, org: str) -> list[list[float]] | None:
+async def _query_window(
+    influx_client, bucket: str, org: str
+) -> list[list[float]] | None:
     """SEQ_LEN rows for LSTM. Pads with first row if fewer points exist."""
     try:
         query = f"""
@@ -73,9 +76,12 @@ async def _query_window(influx_client, bucket: str, org: str) -> list[list[float
         return None
 
 
-async def _save_prediction(session_factory, model_name, score, binary_output, severity, raw_features):
+async def _save_prediction(
+    session_factory, model_name, score, binary_output, severity, raw_features
+):
     """Write one prediction row to PostgreSQL."""
     from app.models.prediction import Prediction
+
     async with session_factory() as session:
         pred = Prediction(
             model_name=model_name,
@@ -93,7 +99,7 @@ async def _create_alert(session_factory, redis_client, severity: str, message: s
     from app.models.alert import Alert, SeverityEnum
 
     severity_map = {
-        "warning":  SeverityEnum.MEDIUM,
+        "warning": SeverityEnum.MEDIUM,
         "critical": SeverityEnum.CRITICAL,
         "CONGESTED": SeverityEnum.HIGH,
     }
@@ -109,11 +115,16 @@ async def _create_alert(session_factory, redis_client, severity: str, message: s
             session.add(alert)
             await session.commit()
 
-        await redis_client.publish("alerts", json.dumps({
-            "severity": severity,
-            "message": message,
-            "ts": datetime.now(timezone.utc).isoformat(),
-        }))
+        await redis_client.publish(
+            "alerts",
+            json.dumps(
+                {
+                    "severity": severity,
+                    "message": message,
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }
+            ),
+        )
         logger.info(f"[scheduler] Alert created: {message}")
     except Exception as e:
         logger.error(f"[scheduler] Alert creation failed: {e}")
@@ -127,11 +138,15 @@ async def run_inference_loop(app_state: dict):
     redis_client = app_state["redis_client"]
     settings = app_state["settings"]
 
-    bucket = settings.influxdb_bucket if hasattr(settings, "influxdb_bucket") else "metrics"
+    bucket = (
+        settings.influxdb_bucket if hasattr(settings, "influxdb_bucket") else "metrics"
+    )
     org = settings.influxdb_org if hasattr(settings, "influxdb_org") else "myorg"
 
     congestion_predictor = None
     anomaly_predictor = None
+    latest_congestion_score = 0.0
+    latest_anomaly_score = 0.0
 
     while True:
         try:
@@ -140,6 +155,7 @@ async def run_inference_loop(app_state: dict):
             if congestion_predictor is None:
                 try:
                     from ml.congestion.predictor import get_predictor
+
                     congestion_predictor = get_predictor()
                     logger.info("[scheduler] Congestion predictor loaded.")
                 except Exception as e:
@@ -148,6 +164,7 @@ async def run_inference_loop(app_state: dict):
             if anomaly_predictor is None:
                 try:
                     from ml.anomaly.predictor import AnomalyPredictor
+
                     anomaly_predictor = AnomalyPredictor()
                     logger.info("[scheduler] Anomaly predictor loaded.")
                 except Exception as e:
@@ -160,6 +177,7 @@ async def run_inference_loop(app_state: dict):
                     try:
                         result = congestion_predictor.predict_with_confidence(summary)
                         score = result["probability"]
+                        latest_congestion_score = score
                         is_congested = result["prediction"] == 1
 
                         await _save_prediction(
@@ -171,16 +189,22 @@ async def run_inference_loop(app_state: dict):
                             raw_features=json.dumps(summary),
                         )
 
-                        await redis_client.publish("predictions", json.dumps({
-                            "model": "xgboost-congestion",
-                            "score": round(score, 4),
-                            "is_alert": score > CONGESTION_ALERT_THRESH,
-                            "ts": datetime.now(timezone.utc).isoformat(),
-                        }))
+                        await redis_client.publish(
+                            "predictions",
+                            json.dumps(
+                                {
+                                    "model": "xgboost-congestion",
+                                    "score": round(score, 4),
+                                    "is_alert": score > CONGESTION_ALERT_THRESH,
+                                    "ts": datetime.now(timezone.utc).isoformat(),
+                                }
+                            ),
+                        )
 
                         if score > CONGESTION_ALERT_THRESH:
                             await _create_alert(
-                                session_factory, redis_client,
+                                session_factory,
+                                redis_client,
                                 severity="CONGESTED",
                                 message=f"High congestion probability: {score:.1%}",
                             )
@@ -196,6 +220,7 @@ async def run_inference_loop(app_state: dict):
                     try:
                         result = anomaly_predictor.predict(window)
                         score = result["anomaly_score"]
+                        latest_anomaly_score = score
                         is_anomaly = result["is_anomaly"]
                         severity = result["severity"]
 
@@ -208,22 +233,30 @@ async def run_inference_loop(app_state: dict):
                             raw_features=json.dumps(window[-1]),
                         )
 
-                        await redis_client.publish("predictions", json.dumps({
-                            "model": "lstm-anomaly",
-                            "score": round(score, 4),
-                            "severity": severity,
-                            "is_alert": is_anomaly,
-                            "ts": datetime.now(timezone.utc).isoformat(),
-                        }))
+                        await redis_client.publish(
+                            "predictions",
+                            json.dumps(
+                                {
+                                    "model": "lstm-anomaly",
+                                    "score": round(score, 4),
+                                    "severity": severity,
+                                    "is_alert": is_anomaly,
+                                    "ts": datetime.now(timezone.utc).isoformat(),
+                                }
+                            ),
+                        )
 
                         if is_anomaly:
                             await _create_alert(
-                                session_factory, redis_client,
+                                session_factory,
+                                redis_client,
                                 severity=severity,
                                 message=f"Anomaly detected - score {score:.3f}, severity {severity}",
                             )
 
-                        logger.info(f"[scheduler] Anomaly score={score:.4f} severity={severity}")
+                        logger.info(
+                            f"[scheduler] Anomaly score={score:.4f} severity={severity}"
+                        )
                     except Exception as e:
                         logger.error(f"[scheduler] Anomaly inference failed: {e}")
 
