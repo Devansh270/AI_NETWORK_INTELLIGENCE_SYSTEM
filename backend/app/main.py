@@ -1,10 +1,3 @@
-"""
-AINIS FastAPI Application
-
-Wires together FastAPI app, CORS, routers, lifespan startup/shutdown,
-the background inference scheduler, and the /health endpoint.
-"""
-
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -18,10 +11,11 @@ from app.api import alerts, metrics
 from app.api.websocket_routes import router as ws_router
 from app.api.predictions import router as predictions_router
 from app.api.anomaly import router as anomaly_router
+from app.api.routing import router as routing_router
+from app.api.topology import router as topology_router
 from app.core.db import engine, AsyncSessionLocal
 from app.core.influx import get_influx_write_api, get_influx_client
 from app.core.config import get_settings
-from app.api.routing import router as routing_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,17 +27,14 @@ logger = logging.getLogger("ainis.api")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("AINIS API starting up...")
-
     settings = get_settings()
 
-    # Redis client (shared across app)
     redis_client = aioredis.from_url(
         f"redis://{settings.redis_host}:{settings.redis_port}",
         decode_responses=True,
     )
     app.state.redis = redis_client
 
-    # InfluxDB client (for scheduler queries)
     influx_available = False
     try:
         app.state.influx = get_influx_client()
@@ -53,32 +44,42 @@ async def lifespan(app: FastAPI):
         logger.warning(f"InfluxDB not available at startup: {e}")
         app.state.influx = None
 
-    # Start background inference scheduler
+    app.state.inference_task = None
+    app.state.aggregation_task = None
+
     if influx_available:
-        from app.services.inference_scheduler import run_inference_loop
-        app.state.inference_task = asyncio.create_task(
-            run_inference_loop({
-                "influx_client":   app.state.influx,
-                "session_factory": AsyncSessionLocal,
-                "redis_client":    redis_client,
-                "settings":        settings,
-            })
+        shared_state = {
+            "influx_client": app.state.influx,
+            "session_factory": AsyncSessionLocal,
+            "redis_client": redis_client,
+            "settings": settings,
+        }
+
+        from app.services.feature_aggregator import run_feature_aggregation_loop
+
+        app.state.aggregation_task = asyncio.create_task(
+            run_feature_aggregation_loop(shared_state)
         )
+        logger.info("Feature aggregation loop started.")
+
+        from app.services.inference_scheduler import run_inference_loop
+
+        app.state.inference_task = asyncio.create_task(run_inference_loop(shared_state))
         logger.info("Inference scheduler started.")
     else:
-        app.state.inference_task = None
-        logger.warning("Inference scheduler NOT started - InfluxDB unavailable.")
+        logger.warning("Background tasks NOT started - InfluxDB unavailable.")
 
     yield
 
-    # Shutdown
-    if getattr(app.state, "inference_task", None) is not None:
-        app.state.inference_task.cancel()
-        try:
-            await app.state.inference_task
-        except asyncio.CancelledError:
-            pass
-        logger.info("Inference scheduler stopped.")
+    for task_name in ("inference_task", "aggregation_task"):
+        task = getattr(app.state, task_name, None)
+        if task is not None:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            logger.info(f"{task_name} stopped.")
 
     try:
         await redis_client.aclose()
@@ -90,11 +91,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AINIS API",
-    description="AI Network Intelligence System - real-time packet monitoring, anomaly detection, and traffic optimization.",
+    description="AI Network Intelligence System",
     version="0.1.0",
     lifespan=lifespan,
 )
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -104,13 +104,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 app.include_router(alerts.router)
 app.include_router(metrics.router)
 app.include_router(ws_router)
 app.include_router(predictions_router)
 app.include_router(anomaly_router)
 app.include_router(routing_router)
+app.include_router(topology_router)
+
 
 @app.get("/")
 async def root():
