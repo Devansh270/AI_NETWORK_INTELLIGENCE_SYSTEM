@@ -1,9 +1,12 @@
 """
-app/api/topology.py - GET /topology endpoint
+app/api/topology.py - GET /topology endpoint + WebSocket for live updates
 """
 
-from fastapi import APIRouter
+import json
+import asyncio
 import os
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 router = APIRouter(prefix="/topology", tags=["topology"])
 
@@ -53,15 +56,17 @@ def _get_utilization() -> dict:
         util = {}
         for edge in STATIC_EDGES:
             src_node = edge["source"]
-            src_ip = next((n["ip"] for n in STATIC_NODES if n["id"] == src_node), "")
-            util[edge["id"]] = round(min(totals.get(src_ip, 0) / max_val, 1.0), 3)
+            src_ip = next((n["ip"]
+                          for n in STATIC_NODES if n["id"] == src_node), "")
+            util[edge["id"]] = round(
+                min(totals.get(src_ip, 0) / max_val, 1.0), 3)
         return util
     except Exception:
         return {e["id"]: 0.0 for e in STATIC_EDGES}
 
 
-@router.get("")
-async def get_topology():
+def _build_topology() -> dict:
+    """Builds the full topology payload with current utilization."""
     utilization = _get_utilization()
     edges_with_util = []
     for edge in STATIC_EDGES:
@@ -69,3 +74,31 @@ async def get_topology():
         e["utilization"] = utilization.get(edge["id"], 0.0)
         edges_with_util.append(e)
     return {"nodes": STATIC_NODES, "edges": edges_with_util}
+
+
+@router.get("")
+async def get_topology():
+    return _build_topology()
+
+
+@router.websocket("/ws")
+async def topology_ws(websocket: WebSocket):
+    """Stream topology updates via WebSocket. Pushes current state on connect, then every 5 sec."""
+    await websocket.accept()
+
+    try:
+        # Send initial state immediately
+        initial = _build_topology()
+        await websocket.send_text(json.dumps(initial))
+
+        # Then poll + push every 5 sec
+        while True:
+            await asyncio.sleep(5)
+            update = _build_topology()
+            await websocket.send_text(json.dumps(update))
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        import logging
+        logging.getLogger("ainis.topology_ws").warning(f"WS ended: {e}")
