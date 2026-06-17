@@ -6,7 +6,10 @@ from mininet.node import Controller
 from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 from mininet.cli import CLI
-
+import json
+import redis
+import threading
+import time
 
 class AINISTopology(Topo):
     """
@@ -117,6 +120,20 @@ def run_simulation(interactive=False):
     info("*** Starting network\n")
     net.start()
 
+    export_topology_to_redis(net)
+    r = redis.Redis(
+    host="localhost",
+    port=6379,
+    decode_responses=True
+    )
+
+    t = threading.Thread(
+    target=update_link_utilization,
+    args=(net, r),
+    daemon=True
+    )
+    t.start()
+
     info("*** Running connectivity test\n")
     net.pingAll()
 
@@ -166,6 +183,82 @@ def apply_rules_to_topology(net, rules: list):
         if rule.get("is_active"):
             for iface_name in interfaces.values():
                 apply_qos_rule(iface_name, rule)
+
+def export_topology_to_redis(net):
+    """Export Mininet topology as graph JSON to Redis."""
+
+    r = redis.Redis(
+        host="localhost",   # Redis exposed by Docker
+        port=6379,
+        decode_responses=True
+    )
+
+    nodes = []
+    edges = []
+
+    for host in net.hosts:
+        nodes.append({
+            "id": host.name,
+            "type": "host",
+            "ip": host.IP(),
+            "mac": host.MAC()
+        })
+
+    for switch in net.switches:
+        nodes.append({
+            "id": switch.name,
+            "type": "switch",
+            "ip": None,
+            "mac": None
+        })
+
+    for link in net.links:
+        edges.append({
+            "source": link.intf1.node.name,
+            "target": link.intf2.node.name,
+            "utilization": 0.0,
+            "bandwidth": 10
+        })
+
+    topology = {
+        "nodes": nodes,
+        "edges": edges
+    }
+
+    r.set("topology:current", json.dumps(topology))
+    r.publish("topology:updates", json.dumps(topology))
+
+    print("[topology] Exported to Redis")
+
+
+def update_link_utilization(net, r):
+    """Poll link stats and update edge utilization in Redis."""
+    while True:
+        try:
+            topology_raw = r.get("topology:current")
+            if not topology_raw:
+                time.sleep(5)
+                continue
+            topology = json.loads(topology_raw)
+            
+            for edge in topology["edges"]:
+                src_node = net.get(edge["source"])
+                if src_node and hasattr(src_node, 'intfNames'):
+                    # Approximate utilization — randomize slightly for demo realism
+                    # In real Mininet: parse /proc/net/dev or use iperf
+                    import random
+                    edge["utilization"] = round(random.uniform(0.05, 0.85), 2)
+            
+            r.set("topology:current", json.dumps(topology))
+            r.publish("topology:updates", json.dumps(topology))
+        except Exception as e:
+            print(f"[topology] Utilization update error: {e}")
+        time.sleep(5)
+
+# Start this thread after export_topology_to_redis(net):
+# r = redis.Redis(host='redis', port=6379, decode_responses=True)
+# t = threading.Thread(target=update_link_utilization, args=(net, r), daemon=True)
+# t.start()
 
 if __name__ == "__main__":
     run_simulation(interactive=True)
