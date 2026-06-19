@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-import asyncio
 import redis.asyncio as redis
 
 from app.websocket.manager import ConnectionManager
+from app.core.config import get_settings
+
+logger = logging.getLogger("ainis.ws")
 
 # One shared ConnectionManager instance
 manager = ConnectionManager()
@@ -10,7 +14,7 @@ manager = ConnectionManager()
 # WebSocket router
 router = APIRouter(
     prefix="/ws",
-    tags=["websocket"]
+    tags=["websocket"],
 )
 
 
@@ -21,41 +25,38 @@ async def websocket_metrics(websocket: WebSocket):
     and broadcasts packet events to all connected clients.
     """
     await manager.connect(websocket)
-
     pubsub = None
-
+    redis_client = None
     try:
-        # Connect to Redis
-        redis_client = redis.from_url("redis://localhost:6379")
-
-        # Subscribe to packets channel
+        settings = get_settings()
+        redis_client = redis.from_url(
+            f"redis://{settings.redis_host}:{settings.redis_port}",
+            decode_responses=True,
+        )
         pubsub = redis_client.pubsub()
         await pubsub.subscribe("packets")
 
-        # Listen forever for Redis messages
-        async for message in pubsub.listen():
-
-            # Skip subscribe/unsubscribe notifications
+        while True:
+            message = await pubsub.get_message(
+                ignore_subscribe_messages=True, timeout=1.0
+            )
+            if message is None:
+                continue
             if message["type"] != "message":
                 continue
-
-            data = message["data"]
-
-            # Redis often returns bytes
-            if isinstance(data, bytes):
-                data = data.decode("utf-8")
-
-            # Broadcast to all connected WebSocket clients
-            await manager.broadcast(data)
+            await manager.broadcast(message["data"])
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-
+        pass
+    except Exception as e:
+        logger.warning(f"metrics ws ended: {e}")
     finally:
         manager.disconnect(websocket)
-
         if pubsub:
             await pubsub.close()
+        if redis_client:
+            await redis_client.aclose()
+
 
 @router.websocket("/predictions")
 async def websocket_predictions(websocket: WebSocket):
@@ -64,26 +65,29 @@ async def websocket_predictions(websocket: WebSocket):
     and broadcasts ML predictions (congestion + anomaly) to dashboard clients.
     """
     await websocket.accept()
+    settings = get_settings()
     redis_client = redis.from_url(
-        "redis://localhost:6379",
+        f"redis://{settings.redis_host}:{settings.redis_port}",
         decode_responses=True,
-        socket_timeout=None,
     )
     pubsub = redis_client.pubsub()
     try:
         await pubsub.subscribe("predictions")
-        async for message in pubsub.listen():
+
+        while True:
+            message = await pubsub.get_message(
+                ignore_subscribe_messages=True, timeout=1.0
+            )
+            if message is None:
+                continue
             if message["type"] != "message":
                 continue
-            data = message["data"]
-            if isinstance(data, bytes):
-                data = data.decode("utf-8")
-            await websocket.send_text(data)
+            await websocket.send_text(message["data"])
+
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        import logging
-        logging.getLogger("ainis.ws.predictions").warning(f"predictions ws ended: {e}")
+        logger.warning(f"predictions ws ended: {e}")
     finally:
         try:
             await pubsub.unsubscribe("predictions")
