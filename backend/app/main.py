@@ -14,6 +14,7 @@ from app.api.predictions import router as predictions_router
 from app.api.anomaly import router as anomaly_router
 from app.api.routing import router as routing_router
 from app.api.topology import router as topology_router
+from app.api.health_routes import router as health_router
 from app.core.db import engine, AsyncSessionLocal
 from app.core.influx import get_influx_write_api, get_influx_client
 from app.core.config import get_settings
@@ -131,46 +132,9 @@ app.include_router(predictions_router)
 app.include_router(anomaly_router)
 app.include_router(routing_router)
 app.include_router(topology_router)
+app.include_router(health_router)
 @app.get("/")
 async def root():
     return {"service": "ainis-api", "version": "0.1.0", "status": "running"}
 
 
-@app.get("/health")
-async def health_check():
-    settings = get_settings()
-    services = {}
-
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        services["postgres"] = "up"
-    except Exception as e:
-        logger.warning(f"Postgres health check failed: {e}")
-        services["postgres"] = "down"
-
-    try:
-        client = get_influx_write_api()
-        services["influxdb"] = "up" if client else "down"
-    except Exception as e:
-        logger.warning(f"InfluxDB health check failed: {e}")
-        services["influxdb"] = "down"
-
-    try:
-        r = aioredis.from_url(
-            f"redis://{settings.redis_host}:{settings.redis_port}",
-            socket_connect_timeout=2,
-        )
-        await r.ping()
-        await r.aclose()
-        services["redis"] = "up"
-    except Exception as e:
-        logger.warning(f"Redis health check failed: {e}")
-        services["redis"] = "down"
-
-    return {
-        "status": "ok",
-        "service": "ainis-api",
-        "version": "0.1.0",
-        "services": services,
-    }
