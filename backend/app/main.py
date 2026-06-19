@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -16,6 +17,14 @@ from app.api.topology import router as topology_router
 from app.core.db import engine, AsyncSessionLocal
 from app.core.influx import get_influx_write_api, get_influx_client
 from app.core.config import get_settings
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+from app.core.exceptions import (
+    http_exception_handler,
+    validation_exception_handler,
+    unhandled_exception_handler,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -95,6 +104,17 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        request.state.request_id = str(uuid.uuid4())
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request.state.request_id
+        return response
+
+app.add_middleware(RequestIDMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -111,8 +131,6 @@ app.include_router(predictions_router)
 app.include_router(anomaly_router)
 app.include_router(routing_router)
 app.include_router(topology_router)
-
-
 @app.get("/")
 async def root():
     return {"service": "ainis-api", "version": "0.1.0", "status": "running"}
