@@ -1,0 +1,13 @@
+{
+  "baseline_error_mean": 0.6795456697274546,
+  "baseline_error_std": 0.06972404101234041,
+  "baseline_error_min": 0.4591120481491089,
+  "baseline_error_max": 0.8775706887245178,
+  "baseline_error_p50": 0.6792907118797302,
+  "baseline_error_p95": 0.7945265471935272,
+  "baseline_error_p99": 0.828236210346222,
+  "n_val_sequences": 1256,
+  "seq_len": 30,
+  "input_size": 5,
+  "source_csv": "backend/ml/data/synthetic_traffic.csv"
+}
