@@ -1,5 +1,7 @@
+import json
 import logging
 import os
+from pathlib import Path
 
 import joblib
 import numpy as np
@@ -13,13 +15,14 @@ SEQ_LEN = 30
 INPUT_SIZE = 5
 HIDDEN_SIZE = 64
 
-# Thresholds configurable via env vars
-ANOMALY_THRESHOLD = float(os.getenv("ANOMALY_THRESHOLD", "0.05"))
-SEVERITY_CRITICAL = float(os.getenv("SEVERITY_CRITICAL_THRESHOLD", "0.8"))
-SEVERITY_WARNING = float(os.getenv("SEVERITY_WARNING_THRESHOLD", "0.5"))
-
 CHECKPOINT = os.path.join(os.path.dirname(__file__), "lstm_best.pt")
 SCALER_PATH = os.path.join(os.path.dirname(__file__), "scaler.joblib")
+CALIBRATION_PATH = Path(os.path.dirname(__file__)) / "calibration.json"
+
+# Severity thresholds in z-score space (std devs above baseline mean).
+# Tunable via env vars but defaults are based on calibration.json statistics.
+SEVERITY_WARNING_Z = float(os.getenv("SEVERITY_WARNING_Z", "2.0"))   # ~p97
+SEVERITY_CRITICAL_Z = float(os.getenv("SEVERITY_CRITICAL_Z", "3.0"))  # ~p99.7
 
 
 class AnomalyPredictor:
@@ -38,14 +41,28 @@ class AnomalyPredictor:
 
         self.scaler = joblib.load(SCALER_PATH)
 
-        logger.info(
-            "AnomalyPredictor loaded",
-            extra={
-                "checkpoint": CHECKPOINT,
-                "device": str(self.device),
-                "anomaly_threshold": ANOMALY_THRESHOLD,
-            },
-        )
+        # Load calibration baseline. If missing, fall back to neutral defaults
+        # (score = 0.5 for everything) and log a warning - the system stays up
+        # but produces useless scores until calibrate.py is rerun.
+        self.baseline_mean = 0.5
+        self.baseline_std = 1e-6
+        if CALIBRATION_PATH.exists():
+            with open(CALIBRATION_PATH) as f:
+                cal = json.load(f)
+            self.baseline_mean = float(cal["baseline_error_mean"])
+            self.baseline_std = float(cal["baseline_error_std"]) or 1e-6
+            logger.info(
+                "AnomalyPredictor loaded with calibration",
+                extra={
+                    "baseline_mean": self.baseline_mean,
+                    "baseline_std": self.baseline_std,
+                },
+            )
+        else:
+            logger.warning(
+                "calibration.json missing - run `python -m ml.anomaly.calibrate`. "
+                "Scores will be uncalibrated until then."
+            )
 
     def predict(self, window: list[list[float]]) -> dict:
         """
@@ -91,22 +108,25 @@ class AnomalyPredictor:
         # Mean squared reconstruction error across all timesteps and features
         error = torch.mean((tensor - reconstruction) ** 2).item()
 
-        # Normalize to 0–1 relative to the threshold.
-        # score < 1.0 means below threshold; score == 1.0 means at or above threshold.
-        score = min(error / ANOMALY_THRESHOLD, 1.0)
+        # Z-score normalize against baseline computed from validation traffic.
+        # z = how many std devs above the mean of normal reconstruction error.
+        # Then sigmoid-squash to 0-1 so the score is a probability-like number.
+        z = (error - self.baseline_mean) / self.baseline_std
+        score = 1.0 / (1.0 + np.exp(-z))
 
-        is_anomaly = error > ANOMALY_THRESHOLD
+        is_anomaly = z >= SEVERITY_WARNING_Z
 
-        if score >= SEVERITY_CRITICAL:
+        if z >= SEVERITY_CRITICAL_Z:
             severity = "critical"
-        elif score >= SEVERITY_WARNING:
+        elif z >= SEVERITY_WARNING_Z:
             severity = "warning"
         else:
             severity = "normal"
 
         return {
-            "anomaly_score": round(score, 4),
+            "anomaly_score": round(float(score), 4),
             "reconstruction_error": round(error, 6),
-            "is_anomaly": is_anomaly,
+            "z_score": round(float(z), 4),
+            "is_anomaly": bool(is_anomaly),
             "severity": severity,
         }
