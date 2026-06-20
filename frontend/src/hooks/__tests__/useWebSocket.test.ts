@@ -13,12 +13,15 @@ class MockWebSocket {
   readyState = 0 // CONNECTING — use number directly, not WebSocket.CONNECTING
 
   constructor(url: string) {
-    this.url = url
-    setTimeout(() => {
-      this.readyState = 1 // OPEN
-      this.onopen?.()
-    }, 0)
-  }
+  this.url = url
+
+  ;(globalThis.WebSocket as any).lastInstance = this
+
+  setTimeout(() => {
+    this.readyState = 1
+    this.onopen?.()
+  }, 0)
+}
 
   close() {
     this.readyState = 3 // CLOSED
