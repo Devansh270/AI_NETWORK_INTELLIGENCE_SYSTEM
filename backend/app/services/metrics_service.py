@@ -21,21 +21,18 @@ def _query_influx_sync(window_seconds: int = 60):
         query_api = client.query_api()
         org = os.getenv("INFLUXDB_ORG", "myorg")
 
-        total_q = f"""
+        combined_q = f"""
         from(bucket: "{bucket}")
           |> range(start: -{window_seconds}s)
           |> filter(fn: (r) => r._measurement == "network_traffic")
           |> filter(fn: (r) => r._field == "packet_length")
-          |> count()
-          |> sum()
-        """
-
-        bytes_q = f"""
-        from(bucket: "{bucket}")
-          |> range(start: -{window_seconds}s)
-          |> filter(fn: (r) => r._measurement == "network_traffic")
-          |> filter(fn: (r) => r._field == "packet_length")
-          |> sum()
+          |> reduce(
+              fn: (r, accumulator) => ({{
+                  count: accumulator.count + 1,
+                  sum: accumulator.sum + r._value
+              }}),
+              identity: {{count: 0, sum: 0.0}}
+          )
         """
 
         proto_q = f"""
@@ -47,17 +44,12 @@ def _query_influx_sync(window_seconds: int = 60):
           |> count()
         """
 
-        def safe_sum(tables):
-            total = 0
-            for table in tables:
-                for record in table.records:
-                    v = record.get_value()
-                    if v is not None:
-                        total += int(v)
-            return total
-
-        total_packets = safe_sum(query_api.query(total_q, org=org))
-        total_bytes = safe_sum(query_api.query(bytes_q, org=org))
+        total_packets = 0
+        total_bytes = 0
+        for table in query_api.query(combined_q, org=org):
+            for record in table.records:
+                total_packets = int(record.values.get("count", 0))
+                total_bytes = int(record.values.get("sum", 0))
 
         proto_breakdown = {}
         for table in query_api.query(proto_q, org=org):

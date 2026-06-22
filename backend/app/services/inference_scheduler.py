@@ -31,7 +31,10 @@ async def _query_latest_summary(influx_client, bucket: str, org: str):
             " |> last()"
             ' |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")'
         )
-        tables = influx_client.query_api().query(query=query, org=org)
+        loop = asyncio.get_event_loop()
+        tables = await loop.run_in_executor(
+            None, lambda: influx_client.query_api().query(query=query, org=org)
+        )
         for table in tables:
             for record in table.records:
                 return {f: float(record.values.get(f, 0.0)) for f in FEATURES}
@@ -45,13 +48,16 @@ async def _query_window(influx_client, bucket: str, org: str):
     try:
         query = (
             f'from(bucket: "{bucket}")'
-            " |> range(start: -5m)"
+            " |> range(start: -3m)"
             ' |> filter(fn: (r) => r._measurement == "network_metrics")'
             ' |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")'
             ' |> sort(columns: ["_time"], desc: false)'
             f" |> limit(n: {SEQ_LEN})"
         )
-        tables = influx_client.query_api().query(query=query, org=org)
+        loop = asyncio.get_event_loop()
+        tables = await loop.run_in_executor(
+            None, lambda: influx_client.query_api().query(query=query, org=org)
+        )
         rows = []
         for table in tables:
             for record in table.records:
