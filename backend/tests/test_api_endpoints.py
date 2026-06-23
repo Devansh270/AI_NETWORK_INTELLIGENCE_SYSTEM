@@ -1,12 +1,10 @@
 import pytest
 
-
 @pytest.mark.asyncio
 async def test_health_check(async_client):
     resp = await async_client.get("/health")
     # 503 is valid here too — test env may not have live DB/Redis/Influx connections
     assert resp.status_code in (200, 503)
-
 
 @pytest.mark.asyncio
 async def test_post_metrics_happy_path(async_client):
@@ -21,7 +19,6 @@ async def test_post_metrics_happy_path(async_client):
     resp = await async_client.post("/metrics", json=payload)
     assert resp.status_code in (200, 201)
 
-
 @pytest.mark.asyncio
 async def test_post_metrics_missing_required_field_returns_422(async_client):
     bad_payload = {
@@ -33,7 +30,6 @@ async def test_post_metrics_missing_required_field_returns_422(async_client):
     }  # missing src_ip
     resp = await async_client.post("/metrics", json=bad_payload)
     assert resp.status_code == 422
-
 
 @pytest.mark.asyncio
 async def test_post_metrics_wrong_type_returns_422(async_client):
@@ -48,7 +44,6 @@ async def test_post_metrics_wrong_type_returns_422(async_client):
     resp = await async_client.post("/metrics", json=bad_payload)
     assert resp.status_code == 422
 
-
 @pytest.mark.asyncio
 async def test_get_metrics_summary(async_client):
     resp = await async_client.get("/metrics/summary")
@@ -56,7 +51,6 @@ async def test_get_metrics_summary(async_client):
     body = resp.json()
     assert "total_packets" in body
     assert "active_flows" in body
-
 
 @pytest.mark.asyncio
 async def test_post_alert_happy_path(async_client):
@@ -69,7 +63,6 @@ async def test_post_alert_happy_path(async_client):
     resp = await async_client.post("/alerts", json=payload)
     assert resp.status_code == 201
 
-
 @pytest.mark.asyncio
 async def test_get_alerts_returns_list(async_client):
     resp = await async_client.get("/alerts")
@@ -77,7 +70,6 @@ async def test_get_alerts_returns_list(async_client):
     body = resp.json()
     assert "alerts" in body
     assert isinstance(body["alerts"], list)
-
 
 @pytest.mark.asyncio
 async def test_post_alert_invalid_severity_returns_422(async_client):
@@ -87,7 +79,6 @@ async def test_post_alert_invalid_severity_returns_422(async_client):
     }
     resp = await async_client.post("/alerts", json=payload)
     assert resp.status_code == 422
-
 
 @pytest.mark.asyncio
 async def test_predict_congestion_happy_path(async_client):
@@ -104,12 +95,10 @@ async def test_predict_congestion_happy_path(async_client):
     assert "probability" in body
     assert "prediction" in body
 
-
 @pytest.mark.asyncio
 async def test_predict_congestion_missing_field_returns_422(async_client):
     resp = await async_client.post("/predict/congestion", json={"packet_rate": 120.0})
     assert resp.status_code == 422
-
 
 @pytest.mark.asyncio
 async def test_predict_anomaly_happy_path(async_client, sample_feature_window):
