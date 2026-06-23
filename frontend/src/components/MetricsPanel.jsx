@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 import { useWebSocket } from '../hooks/useWebSocket';
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000/ws/metrics'
+const WS_URL = `${import.meta.env.VITE_WS_URL}/ws/metrics`
 const WINDOW_SECONDS = 60
 
 function formatTime(ts) {

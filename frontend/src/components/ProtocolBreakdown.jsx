@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
     PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 import { useWebSocket } from '../hooks/useWebSocket'
 
-const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8000/ws/metrics'
+const WS_URL = `${import.meta.env.VITE_WS_URL}/ws/metrics`
 
 const COLORS = {
     TCP: '#3B82F6',
@@ -41,10 +41,18 @@ const proto = (parsed.protocol ?? 'OTHER').toUpperCase()
         setCounts(prev => ({ ...prev, [key]: prev[key] + 1 }))
     }, [lastMessage])
 
-    const total = Object.values(counts).reduce((a, b) => a + b, 0)
-    const data = Object.entries(counts)
-        .filter(([, v]) => v > 0)
-        .map(([name, value]) => ({ name, value }))
+    const total = useMemo(
+    () => Object.values(counts).reduce((a, b) => a + b, 0),
+    [counts]
+)
+
+const data = useMemo(
+    () =>
+        Object.entries(counts)
+            .filter(([, v]) => v > 0)
+            .map(([name, value]) => ({ name, value })),
+    [counts]
+)
 
     return (
         <div className="bg-gray-800 rounded-xl p-5">
