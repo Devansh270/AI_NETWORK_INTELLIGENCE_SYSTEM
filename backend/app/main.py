@@ -160,8 +160,10 @@ app.include_router(routing_router)
 app.include_router(topology_router)
 app.include_router(health_router)
 from app.api.metrics_routes import router as metrics_router
+from app.api.telemetry_routes import router as telemetry_router
 
 app.include_router(metrics_router)
+app.include_router(telemetry_router)
 
 
 @app.get("/")
