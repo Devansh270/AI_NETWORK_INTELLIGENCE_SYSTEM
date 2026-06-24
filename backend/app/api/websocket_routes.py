@@ -1,16 +1,13 @@
 import logging
-
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import redis.asyncio as redis
-
 from app.websocket.manager import ConnectionManager
 from app.core.config import get_settings
+from app.core.metrics import active_connections
 
 logger = logging.getLogger("ainis.ws")
-
 # One shared ConnectionManager instance
 manager = ConnectionManager()
-
 # WebSocket router
 router = APIRouter(
     prefix="/ws",
@@ -35,7 +32,6 @@ async def websocket_metrics(websocket: WebSocket):
         )
         pubsub = redis_client.pubsub()
         await pubsub.subscribe("packets")
-
         while True:
             message = await pubsub.get_message(
                 ignore_subscribe_messages=True, timeout=1.0
@@ -45,7 +41,6 @@ async def websocket_metrics(websocket: WebSocket):
             if message["type"] != "message":
                 continue
             await manager.broadcast(message["data"])
-
     except WebSocketDisconnect:
         pass
     except Exception as e:
@@ -65,6 +60,7 @@ async def websocket_predictions(websocket: WebSocket):
     and broadcasts ML predictions (congestion + anomaly) to dashboard clients.
     """
     await websocket.accept()
+    active_connections.inc()
     settings = get_settings()
     redis_client = redis.from_url(
         f"redis://{settings.redis_host}:{settings.redis_port}",
@@ -73,7 +69,6 @@ async def websocket_predictions(websocket: WebSocket):
     pubsub = redis_client.pubsub()
     try:
         await pubsub.subscribe("predictions")
-
         while True:
             message = await pubsub.get_message(
                 ignore_subscribe_messages=True, timeout=1.0
@@ -83,12 +78,12 @@ async def websocket_predictions(websocket: WebSocket):
             if message["type"] != "message":
                 continue
             await websocket.send_text(message["data"])
-
     except WebSocketDisconnect:
         pass
     except Exception as e:
         logger.warning(f"predictions ws ended: {e}")
     finally:
+        active_connections.dec()
         try:
             await pubsub.unsubscribe("predictions")
             await pubsub.close()

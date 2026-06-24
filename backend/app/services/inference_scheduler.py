@@ -11,6 +11,7 @@ import json
 import logging
 from datetime import datetime, timezone
 from app.services.auto_rule_manager import evaluate_rules
+from app.core.metrics import predictions_made_total
 
 logger = logging.getLogger("ainis.scheduler")
 
@@ -192,6 +193,9 @@ async def run_inference_loop(app_state: dict):
                                 message=f"High congestion probability: {score:.1%}",
                             )
                         logger.info(f"[scheduler] Congestion score={score:.4f}")
+                        predictions_made_total.labels(
+                            model_name="xgboost-congestion"
+                        ).inc()
                     except Exception as e:
                         logger.error(f"[scheduler] Congestion inference failed: {e}")
                 else:
@@ -237,6 +241,7 @@ async def run_inference_loop(app_state: dict):
                         logger.info(
                             f"[scheduler] Anomaly score={score:.4f} severity={severity}"
                         )
+                        predictions_made_total.labels(model_name="lstm-anomaly").inc()
                     except Exception as e:
                         logger.error(f"[scheduler] Anomaly inference failed: {e}")
                 else:

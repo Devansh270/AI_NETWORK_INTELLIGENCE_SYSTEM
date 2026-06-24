@@ -11,6 +11,7 @@ from app.core.influx import (
     get_influx_write_api,
     influx_is_configured,
 )
+from app.core.metrics import packets_captured_total
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
@@ -20,6 +21,7 @@ async def ingest_metric(
     metric: NetworkMetric,
     db: AsyncSession = Depends(get_session),
 ):
+    packets_captured_total.inc()
     # 1. InfluxDB (time-series store)
     point = (
         Point("network_traffic")
@@ -60,9 +62,8 @@ async def ingest_metric(
         # InfluxDB write already succeeded. Log and continue.
         await db.rollback()
         import logging
-        logging.getLogger("ainis.metrics").warning(
-            f"network_events insert failed: {e}"
-        )
+
+        logging.getLogger("ainis.metrics").warning(f"network_events insert failed: {e}")
 
     return {
         "status": "written",
@@ -72,9 +73,7 @@ async def ingest_metric(
 
 
 @router.get("/summary", response_model=MetricsSummary)
-async def metrics_summary(
-    window: int = Query(default=60, ge=5, le=3600)
-):
+async def metrics_summary(window: int = Query(default=60, ge=5, le=3600)):
     """
     Returns aggregated network metrics for the last `window` seconds.
     Default window: 60 seconds.
