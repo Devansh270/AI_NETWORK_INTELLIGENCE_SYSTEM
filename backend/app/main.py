@@ -28,6 +28,7 @@ from app.core.exceptions import (
     unhandled_exception_handler,
 )
 from app.core.logging_config import configure_logging
+
 log = configure_logging()
 
 logging.basicConfig(
@@ -112,6 +113,8 @@ app = FastAPI(
 app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
+
+
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         request.state.request_id = str(uuid.uuid4())
@@ -119,7 +122,9 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-ID"] = request.state.request_id
         return response
 
+
 app.add_middleware(RequestIDMiddleware)
+
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
@@ -134,7 +139,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             duration_ms=duration_ms,
         )
         return response
-        
+
+
 app.add_middleware(RequestLoggingMiddleware)
 
 app.add_middleware(
@@ -153,8 +159,11 @@ app.include_router(anomaly_router)
 app.include_router(routing_router)
 app.include_router(topology_router)
 app.include_router(health_router)
+from app.api.metrics_routes import router as metrics_router
+
+app.include_router(metrics_router)
+
+
 @app.get("/")
 async def root():
     return {"service": "ainis-api", "version": "0.1.0", "status": "running"}
-
-
