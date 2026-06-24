@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -26,6 +27,8 @@ from app.core.exceptions import (
     validation_exception_handler,
     unhandled_exception_handler,
 )
+from app.core.logging_config import configure_logging
+log = configure_logging()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,6 +39,7 @@ logger = logging.getLogger("ainis.api")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log.info("app_startup", service="ainis-backend")
     logger.info("AINIS API starting up...")
     settings = get_settings()
 
@@ -116,6 +120,22 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(RequestIDMiddleware)
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        start = time.time()
+        response = await call_next(request)
+        duration_ms = round((time.time() - start) * 1000, 2)
+        log.info(
+            "http_request",
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_ms=duration_ms,
+        )
+        return response
+        
+app.add_middleware(RequestLoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
