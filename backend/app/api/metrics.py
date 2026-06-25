@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Request
+
+from app.core.limiter import limiter
 from influxdb_client import Point
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import verify_api_key
@@ -73,7 +75,8 @@ async def ingest_metric(
 
 
 @router.get("/summary", response_model=MetricsSummary)
-async def metrics_summary(window: int = Query(default=60, ge=5, le=3600)):
+@limiter.limit("100/minute")
+async def metrics_summary(request: Request, window: int = Query(default=60, ge=5, le=3600)):
     """
     Returns aggregated network metrics for the last `window` seconds.
     Default window: 60 seconds.

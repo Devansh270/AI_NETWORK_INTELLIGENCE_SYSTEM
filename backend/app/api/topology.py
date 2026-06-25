@@ -6,7 +6,9 @@ import json
 import asyncio
 import os
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
+
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/topology", tags=["topology"])
 
@@ -77,7 +79,8 @@ def _build_topology() -> dict:
 
 
 @router.get("")
-async def get_topology():
+@limiter.limit("100/minute")
+async def get_topology(request: Request):
     return _build_topology()
 
 

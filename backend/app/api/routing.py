@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from app.core.limiter import limiter
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.core.db import get_session
@@ -20,13 +22,15 @@ redis_client = redis.Redis(
 
 
 @router.get("/", response_model=List[RoutingRuleResponse])
-async def get_routing_rules(db: AsyncSession = Depends(get_session)):
+@limiter.limit("100/minute")
+async def get_routing_rules(request: Request, db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(RoutingRule))
     return result.scalars().all()
 
 
 @router.get("/{rule_id}", response_model=RoutingRuleResponse)
-async def get_routing_rule(rule_id: int, db: AsyncSession = Depends(get_session)):
+@limiter.limit("100/minute")
+async def get_routing_rule(request: Request, rule_id: int, db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(RoutingRule).where(RoutingRule.id == rule_id))
     rule = result.scalar_one_or_none()
 
@@ -39,7 +43,9 @@ async def get_routing_rule(rule_id: int, db: AsyncSession = Depends(get_session)
 @router.post(
     "/", response_model=RoutingRuleResponse, dependencies=[Depends(verify_api_key)]
 )
+@limiter.limit("30/minute")
 async def create_routing_rule(
+    request: Request,
     rule: RoutingRuleCreate,
     db: AsyncSession = Depends(get_session),
 ):
@@ -67,7 +73,9 @@ async def create_routing_rule(
     response_model=RoutingRuleResponse,
     dependencies=[Depends(verify_api_key)],
 )
+@limiter.limit("30/minute")
 async def update_routing_rule(
+    request: Request,
     rule_id: int,
     rule: RoutingRuleCreate,
     db: AsyncSession = Depends(get_session),
@@ -98,7 +106,9 @@ async def update_routing_rule(
 
 
 @router.delete("/{rule_id}", dependencies=[Depends(verify_api_key)])
+@limiter.limit("30/minute")
 async def delete_routing_rule(
+    request: Request,
     rule_id: int,
     db: AsyncSession = Depends(get_session),
 ):
