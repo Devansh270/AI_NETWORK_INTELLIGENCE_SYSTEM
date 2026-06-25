@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
+
+from app.core.limiter import limiter
 from app.core.security import verify_api_key
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -19,7 +21,9 @@ class AlertCreate(BaseModel):
 
 # GET /alerts
 @router.get("")
+@limiter.limit("100/minute")
 async def list_alerts(
+    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_session),
@@ -33,7 +37,9 @@ async def list_alerts(
 
 # POST /alerts
 @router.post("", status_code=201, dependencies=[Depends(verify_api_key)])
+@limiter.limit("30/minute")
 async def create_alert(
+    request: Request,
     payload: AlertCreate,
     db: AsyncSession = Depends(get_session),
 ):

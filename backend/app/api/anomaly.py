@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
+
+from app.core.limiter import limiter
 from app.core.security import verify_api_key
 from pydantic import BaseModel, validator
 from typing import List
@@ -42,7 +44,8 @@ class AnomalyResponse(BaseModel):
 @router.post(
     "/anomaly", response_model=AnomalyResponse, dependencies=[Depends(verify_api_key)]
 )
-async def predict_anomaly(payload: AnomalyRequest):
+@limiter.limit("60/minute")
+async def predict_anomaly(request: Request, payload: AnomalyRequest):
     try:
         predictor = get_predictor()
         result = predictor.predict(payload.window)

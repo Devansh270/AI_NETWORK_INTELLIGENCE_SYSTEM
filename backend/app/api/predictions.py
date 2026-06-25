@@ -1,4 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+
+from app.core.limiter import limiter
 from pydantic import BaseModel, Field
 from typing import Literal
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +33,8 @@ class CongestionResponse(BaseModel):
     response_model=CongestionResponse,
     dependencies=[Depends(verify_api_key)],
 )
-async def predict_congestion(features: CongestionFeatures):
+@limiter.limit("60/minute")
+async def predict_congestion(request: Request, features: CongestionFeatures):
     try:
         from ml.congestion.predictor import get_predictor
 
@@ -54,7 +57,8 @@ async def predict_congestion(features: CongestionFeatures):
 
 
 @router.get("/predictions/latest")
-async def get_latest_predictions(db: AsyncSession = Depends(get_session)):
+@limiter.limit("100/minute")
+async def get_latest_predictions(request: Request, db: AsyncSession = Depends(get_session)):
     result = await db.execute(
         select(Prediction).order_by(desc(Prediction.created_at)).limit(20)
     )
