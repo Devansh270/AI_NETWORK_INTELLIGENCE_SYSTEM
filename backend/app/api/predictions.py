@@ -6,6 +6,8 @@ from sqlalchemy import select, desc
 from fastapi import Depends
 from app.core.db import get_session
 from app.models.prediction import Prediction
+from app.core.security import verify_api_key
+
 router = APIRouter(prefix="/predict", tags=["predictions"])
 
 
@@ -14,12 +16,7 @@ class CongestionFeatures(BaseModel):
     avg_latency: float = Field(..., gt=0, description="Average latency in ms")
     byte_rate: float = Field(..., gt=0, description="Bytes per second")
     flow_count: int = Field(..., gt=0, description="Number of active flows")
-    protocol_ratio: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="TCP ratio (0-1)"
-    )
+    protocol_ratio: float = Field(..., ge=0.0, le=1.0, description="TCP ratio (0-1)")
 
 
 class CongestionResponse(BaseModel):
@@ -29,7 +26,11 @@ class CongestionResponse(BaseModel):
     model: str = "xgboost-v1"
 
 
-@router.post("/congestion", response_model=CongestionResponse)
+@router.post(
+    "/congestion",
+    response_model=CongestionResponse,
+    dependencies=[Depends(verify_api_key)],
+)
 async def predict_congestion(features: CongestionFeatures):
     try:
         from ml.congestion.predictor import get_predictor
@@ -43,22 +44,14 @@ async def predict_congestion(features: CongestionFeatures):
 
         result = predictor.predict_with_confidence(payload)
 
-        return CongestionResponse(
-            **result,
-            model="xgboost-v1"
-        )
+        return CongestionResponse(**result, model="xgboost-v1")
 
     except FileNotFoundError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Model not loaded: {str(e)}"
-        )
+        raise HTTPException(status_code=503, detail=f"Model not loaded: {str(e)}")
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Prediction failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
 
 @router.get("/predictions/latest")
 async def get_latest_predictions(db: AsyncSession = Depends(get_session)):
@@ -68,11 +61,11 @@ async def get_latest_predictions(db: AsyncSession = Depends(get_session)):
     rows = result.scalars().all()
     return [
         {
-            "id":        p.id,
-            "model":     p.model_name,
-            "score":     p.score,
-            "is_alert":  p.binary_output,
-            "severity":  p.severity,
+            "id": p.id,
+            "model": p.model_name,
+            "score": p.score,
+            "is_alert": p.binary_output,
+            "severity": p.severity,
             "timestamp": p.created_at.isoformat(),
         }
         for p in rows
