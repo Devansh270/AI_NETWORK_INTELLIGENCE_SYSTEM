@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -9,6 +8,7 @@ from typing import List
 import redis
 import json
 import os
+from app.core.security import verify_api_key
 
 router = APIRouter(prefix="/routing-rules", tags=["routing"])
 
@@ -18,6 +18,7 @@ redis_client = redis.Redis(
     decode_responses=True,
 )
 
+
 @router.get("/", response_model=List[RoutingRuleResponse])
 async def get_routing_rules(db: AsyncSession = Depends(get_session)):
     result = await db.execute(select(RoutingRule))
@@ -26,9 +27,7 @@ async def get_routing_rules(db: AsyncSession = Depends(get_session)):
 
 @router.get("/{rule_id}", response_model=RoutingRuleResponse)
 async def get_routing_rule(rule_id: int, db: AsyncSession = Depends(get_session)):
-    result = await db.execute(
-        select(RoutingRule).where(RoutingRule.id == rule_id)
-    )
+    result = await db.execute(select(RoutingRule).where(RoutingRule.id == rule_id))
     rule = result.scalar_one_or_none()
 
     if rule is None:
@@ -37,7 +36,9 @@ async def get_routing_rule(rule_id: int, db: AsyncSession = Depends(get_session)
     return rule
 
 
-@router.post("/", response_model=RoutingRuleResponse)
+@router.post(
+    "/", response_model=RoutingRuleResponse, dependencies=[Depends(verify_api_key)]
+)
 async def create_routing_rule(
     rule: RoutingRuleCreate,
     db: AsyncSession = Depends(get_session),
@@ -61,15 +62,17 @@ async def create_routing_rule(
     return db_rule
 
 
-@router.put("/{rule_id}", response_model=RoutingRuleResponse)
+@router.put(
+    "/{rule_id}",
+    response_model=RoutingRuleResponse,
+    dependencies=[Depends(verify_api_key)],
+)
 async def update_routing_rule(
     rule_id: int,
     rule: RoutingRuleCreate,
     db: AsyncSession = Depends(get_session),
 ):
-    result = await db.execute(
-        select(RoutingRule).where(RoutingRule.id == rule_id)
-    )
+    result = await db.execute(select(RoutingRule).where(RoutingRule.id == rule_id))
     db_rule = result.scalar_one_or_none()
 
     if db_rule is None:
@@ -94,14 +97,12 @@ async def update_routing_rule(
     return db_rule
 
 
-@router.delete("/{rule_id}")
+@router.delete("/{rule_id}", dependencies=[Depends(verify_api_key)])
 async def delete_routing_rule(
     rule_id: int,
     db: AsyncSession = Depends(get_session),
 ):
-    result = await db.execute(
-        select(RoutingRule).where(RoutingRule.id == rule_id)
-    )
+    result = await db.execute(select(RoutingRule).where(RoutingRule.id == rule_id))
     db_rule = result.scalar_one_or_none()
 
     if db_rule is None:

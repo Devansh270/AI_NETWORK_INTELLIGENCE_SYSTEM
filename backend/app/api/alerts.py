@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from app.core.security import verify_api_key
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -7,12 +8,14 @@ from app.core.db import get_session
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
+
 # Pydantic schema — what the API accepts
 class AlertCreate(BaseModel):
     title: str
     description: str | None = None
     severity: SeverityEnum
     source_ip: str | None = None
+
 
 # GET /alerts
 @router.get("")
@@ -22,16 +25,14 @@ async def list_alerts(
     db: AsyncSession = Depends(get_session),
 ):
     result = await db.execute(
-        select(Alert)
-        .order_by(Alert.created_at.desc())
-        .offset(skip)
-        .limit(limit)
+        select(Alert).order_by(Alert.created_at.desc()).offset(skip).limit(limit)
     )
     alerts = result.scalars().all()
     return {"alerts": alerts, "skip": skip, "limit": limit}
 
+
 # POST /alerts
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(verify_api_key)])
 async def create_alert(
     payload: AlertCreate,
     db: AsyncSession = Depends(get_session),

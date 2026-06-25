@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from influxdb_client import Point
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.security import verify_api_key
 from app.models.metrics import NetworkMetric, MetricsSummary
 from app.models.network_event import NetworkEvent
 from app.services.metrics_service import get_metrics_summary
@@ -16,7 +16,7 @@ from app.core.metrics import packets_captured_total
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(verify_api_key)])
 async def ingest_metric(
     metric: NetworkMetric,
     db: AsyncSession = Depends(get_session),

@@ -13,6 +13,7 @@ from scapy.all import sniff, IP, TCP, UDP, ICMP, conf, get_if_list
 # CONFIG
 API_URL = os.getenv("AINIS_API_URL", "http://localhost:8000/metrics")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+API_KEY = os.getenv("AINIS_API_KEY", "")
 
 MAX_BUFFER = 1000
 RETRY_BACKOFF_SECONDS = [1, 2, 5]
@@ -187,7 +188,7 @@ def init_agent():
         redis_client = None
         print(f"[agent][warn] Redis unavailable: {e}", flush=True)
 
-    http_client = httpx.Client(timeout=2.0)
+    http_client = httpx.Client(timeout=2.0, headers={"X-API-Key": API_KEY})
 
     print("[agent] Available interfaces:")
     print(get_if_list())
