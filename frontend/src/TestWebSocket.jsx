@@ -1,11 +1,14 @@
 import { useWebSocket } from "./hooks/useWebSocket";
+import { WS_BASE_URL } from "./services/config";
+const WS_URL = `${WS_BASE_URL}/ws/metrics`;
+
 
 function TestWebSocket() {
   const {
     lastMessage,
     connectionStatus,
     messageHistory,
-  } = useWebSocket("ws://127.0.0.1:8000/ws/metrics");
+  } = useWebSocket(WS_URL);
 
   return (
     <div style={{ padding: "20px" }}>

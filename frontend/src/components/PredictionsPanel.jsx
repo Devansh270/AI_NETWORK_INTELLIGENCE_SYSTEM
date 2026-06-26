@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+import { WS_BASE_URL } from "../services/config";
+
+const WS_URL = `${WS_BASE_URL}/ws/predictions`;
 
 const severityStyle = {
   normal:    "bg-green-100 text-green-800",
@@ -58,8 +61,8 @@ export default function PredictionsPanel() {
 
   // Live updates from Redis via WebSocket
   useEffect(() => {
-    const host = window.location.hostname;
-    const ws   = new WebSocket(`ws://${host}:8000/ws/predictions`);
+
+    const ws = new WebSocket(WS_URL);
 
     ws.onopen    = () => setWsStatus("live");
     ws.onclose   = () => setWsStatus("disconnected");

@@ -2,4 +2,6 @@
 node_modules/
 __pycache__/
 infra/.env
-*.bak
+*.bakfrontend/.env.development
+frontend/.env.production
+infra/.env

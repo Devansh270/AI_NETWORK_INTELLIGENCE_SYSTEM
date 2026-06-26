@@ -4,8 +4,9 @@ import {
   Tooltip, ResponsiveContainer
 } from 'recharts'
 import { useWebSocket } from '../hooks/useWebSocket';
+import { WS_BASE_URL } from '../services/config';
 
-const WS_URL = `${import.meta.env.VITE_WS_URL}/ws/metrics`
+const WS_URL = `${WS_BASE_URL}/ws/metrics`
 const WINDOW_SECONDS = 60
 
 function formatTime(ts) {
