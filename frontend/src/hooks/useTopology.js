@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { WS_BASE_URL } from "../services/config";
 
 export function useTopology() {
   const [topology, setTopology] = useState({ nodes: [], edges: [] });
@@ -8,8 +9,7 @@ export function useTopology() {
   const reconnectTimeout = useRef(null);
 
   const connect = useCallback(() => {
-    const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000";
-    const ws = new WebSocket(`${WS_URL}/topology/ws`);
+    const ws = new WebSocket(`${WS_BASE_URL}/topology/ws`);
     wsRef.current = ws;
 
     ws.onopen = () => {

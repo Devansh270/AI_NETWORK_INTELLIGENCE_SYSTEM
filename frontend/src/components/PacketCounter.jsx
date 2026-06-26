@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useWebSocket } from '../hooks/useWebSocket'
+import { WS_BASE_URL } from '../services/config'
+
+const WS_URL = `${WS_BASE_URL}/ws/metrics`;
 
 function PacketCounter() {
-    const { lastMessage, connectionStatus, messageHistory } = useWebSocket(
-        'ws://localhost:8000/ws/metrics'
-    )
+
+const { lastMessage, connectionStatus, messageHistory } =
+    useWebSocket(WS_URL);
 
     const [packetCount, setPacketCount] = useState(0)
 
