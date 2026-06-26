@@ -27,6 +27,9 @@ SEVERITY_CRITICAL_Z = float(os.getenv("SEVERITY_CRITICAL_Z", "3.0"))  # ~p99.7
 
 class AnomalyPredictor:
     def __init__(self):
+        import os
+        self.threshold_warning = float(os.getenv("ANOMALY_THRESHOLD_WARNING", 0.42))
+        self.threshold_critical = float(os.getenv("ANOMALY_THRESHOLD_CRITICAL", 0.78))
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = LSTMAutoencoder(input_size=INPUT_SIZE, hidden_size=HIDDEN_SIZE)
@@ -111,18 +114,31 @@ class AnomalyPredictor:
         # Z-score normalize against baseline computed from validation traffic.
         # z = how many std devs above the mean of normal reconstruction error.
         # Then sigmoid-squash to 0-1 so the score is a probability-like number.
+        # z = (error - self.baseline_mean) / self.baseline_std
+        # score = 1.0 / (1.0 + np.exp(-z))
+
+        # is_anomaly = z >= SEVERITY_WARNING_Z
+
+        # if z >= SEVERITY_CRITICAL_Z:
+        #     severity = "critical"
+        # elif z >= SEVERITY_WARNING_Z:
+        #     severity = "warning"
+        # else:
+        #     severity = "normal"
+        # Keep z-score for diagnostic/logging purposes only — it's informative but
+        # not used for severity classification since std is small relative to mean
+        # and over-triggers. Severity uses calibrated percentile thresholds instead.
         z = (error - self.baseline_mean) / self.baseline_std
-        score = 1.0 / (1.0 + np.exp(-z))
+        score = min(error / self.threshold_critical, 1.0) if self.threshold_critical > 0 else 0.5
 
-        is_anomaly = z >= SEVERITY_WARNING_Z
+        is_anomaly = error >= self.threshold_warning
 
-        if z >= SEVERITY_CRITICAL_Z:
+        if error >= self.threshold_critical:
             severity = "critical"
-        elif z >= SEVERITY_WARNING_Z:
+        elif error >= self.threshold_warning:
             severity = "warning"
         else:
             severity = "normal"
-
         return {
             "anomaly_score": round(float(score), 4),
             "reconstruction_error": round(error, 6),
