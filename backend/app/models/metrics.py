@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel
+
 
 class MetricsSummary(BaseModel):
     total_packets:   int
@@ -11,15 +11,24 @@ class MetricsSummary(BaseModel):
     bytes_per_sec:   float
     proto_breakdown: dict[str, int]  # {"TCP": 450, "UDP": 120, "ICMP": 30}
 
+
 class NetworkMetric(BaseModel):
-    src_ip: str = Field(..., example="192.168.1.10")
-    dst_ip: str = Field(..., example="192.168.1.20")
+    src_ip: str = Field(
+        ...,
+        pattern=r"^(\d{1,3}\.){3}\d{1,3}$",
+        examples=["192.168.1.10"]
+    )
+    dst_ip: str = Field(
+        ...,
+        pattern=r"^(\d{1,3}\.){3}\d{1,3}$",
+        examples=["192.168.1.20"]
+    )
     src_port: int = Field(..., ge=0, le=65535)
     dst_port: int = Field(..., ge=0, le=65535)
     protocol: Literal["TCP", "UDP", "ICMP", "OTHER"]
-    packet_length: int = Field(..., gt=0)
+    packet_length: int = Field(..., gt=0, le=65535)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    
+
     class Config:
         json_schema_extra = {
             "example": {
