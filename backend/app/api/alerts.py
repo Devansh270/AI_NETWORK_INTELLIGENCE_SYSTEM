@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, Query, Request
-
 from app.core.limiter import limiter
 from app.core.security import verify_api_key
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from app.models.alert import Alert, SeverityEnum
 from app.core.db import get_session
 
@@ -13,10 +12,12 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 
 # Pydantic schema — what the API accepts
 class AlertCreate(BaseModel):
-    title: str
-    description: str | None = None
+    title: str = Field(..., min_length=1, max_length=255)
+    description: str | None = Field(None, max_length=1000)
     severity: SeverityEnum
-    source_ip: str | None = None
+    source_ip: str | None = Field(
+        None, pattern=r"^(\d{1,3}\.){3}\d{1,3}$"
+    )
 
 
 # GET /alerts

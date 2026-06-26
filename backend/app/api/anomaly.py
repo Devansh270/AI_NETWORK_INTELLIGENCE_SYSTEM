@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Request
-
 from app.core.limiter import limiter
 from app.core.security import verify_api_key
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 from typing import List
 import os
 
@@ -16,7 +15,6 @@ def get_predictor():
     global _predictor
     if _predictor is None:
         from ml.anomaly.predictor import AnomalyPredictor
-
         _predictor = AnomalyPredictor()
     return _predictor
 
@@ -24,13 +22,21 @@ def get_predictor():
 class AnomalyRequest(BaseModel):
     window: List[List[float]]
 
-    @validator("window")
+    @field_validator("window")
+    @classmethod
     def validate_window(cls, v):
         if len(v) != 30:
             raise ValueError(f"window must contain exactly 30 timesteps, got {len(v)}")
         for row in v:
             if len(row) != 5:
                 raise ValueError(f"each timestep must have 5 features, got {len(row)}")
+            for value in row:
+                if not isinstance(value, (int, float)):
+                    raise ValueError("all feature values must be numeric")
+                if abs(value) > 1_000_000:
+                    raise ValueError(
+                        f"feature value {value} out of reasonable range (-1e6, 1e6)"
+                    )
         return v
 
 

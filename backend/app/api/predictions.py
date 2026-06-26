@@ -14,11 +14,12 @@ router = APIRouter(prefix="/predict", tags=["predictions"])
 
 
 class CongestionFeatures(BaseModel):
-    packet_rate: float = Field(..., gt=0, description="Packets per second")
-    avg_latency: float = Field(..., gt=0, description="Average latency in ms")
-    byte_rate: float = Field(..., gt=0, description="Bytes per second")
-    flow_count: int = Field(..., gt=0, description="Number of active flows")
+    packet_rate: float = Field(..., gt=0, le=100000, description="Packets per second")
+    avg_latency: float = Field(..., gt=0, le=10000, description="Average latency in ms")
+    byte_rate: float = Field(..., gt=0, le=10_000_000, description="Bytes per second")
+    flow_count: int = Field(..., gt=0, le=100000, description="Number of active flows")
     protocol_ratio: float = Field(..., ge=0.0, le=1.0, description="TCP ratio (0-1)")
+
 
 
 class CongestionResponse(BaseModel):
