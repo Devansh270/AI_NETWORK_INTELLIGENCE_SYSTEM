@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  postgres-test:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: testdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg_test_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  influxdb-test:
+    image: influxdb:2.7
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: test
+      DOCKER_INFLUXDB_INIT_PASSWORD: testpassword
+      DOCKER_INFLUXDB_INIT_ORG: test-org
+      DOCKER_INFLUXDB_INIT_BUCKET: test-bucket
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: test-token
+    ports:
+      - "8087:8086"
+    volumes:
+      - influx_test_data:/var/lib/influxdb2
+    restart: unless-stopped
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    restart: unless-stopped
+
+  backend-test:
+    build: ../backend
+    environment:
+      REDIS_HOST: redis-test
+      POSTGRES_HOST: postgres-test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: testdb
+      POSTGRES_PORT: 5432
+      INFLUXDB_URL: http://influxdb-test:8086
+      API_BASE: http://backend-test:8000
+      DATABASE_URL: postgresql+asyncpg://test:test@postgres-test:5432/testdb
+    depends_on:
+      - postgres-test
+      - influxdb-test
+      - redis-test
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+
+volumes:
+  pg_test_data:
+  influx_test_data:
