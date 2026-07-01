@@ -169,6 +169,9 @@ app.include_router(anomaly_router)
 app.include_router(routing_router)
 app.include_router(topology_router)
 app.include_router(health_router)
+from app.api.simulate_routes import router as simulate_router
+
+app.include_router(simulate_router)
 from app.api.metrics_routes import router as metrics_router
 from app.api.telemetry_routes import router as telemetry_router
 
