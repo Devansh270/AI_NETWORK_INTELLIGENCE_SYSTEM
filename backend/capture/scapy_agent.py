@@ -8,7 +8,13 @@ import json
 
 import httpx
 
+from dotenv import load_dotenv
+from pathlib import Path
+
 from scapy.all import sniff, IP, TCP, UDP, ICMP, conf, get_if_list
+
+ROOT = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT / "infra" / ".env")
 
 # CONFIG
 API_URL = os.getenv("AINIS_API_URL", "http://localhost:8000/metrics")

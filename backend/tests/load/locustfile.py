@@ -27,9 +27,12 @@ Prerequisites:
 """
 
 import json
+import os
 import time
 
 from locust import User, between, events, task
+
+WS_BASE_URL = os.getenv("WS_BASE_URL", "ws://localhost:8000")
 
 
 class WebSocketUser(User):
@@ -41,7 +44,8 @@ class WebSocketUser(User):
 
         try:
             self.ws = websocket.create_connection(
-                "ws://localhost:8000/ws/metrics", timeout=5
+                f"{WS_BASE_URL}/ws/metrics",
+                timeout=5,
             )
         except Exception as e:
             events.request.fire(
@@ -73,6 +77,7 @@ class WebSocketUser(User):
 
             # Light validation - the message must parse as JSON
             json.loads(msg)
+
         except Exception as e:
             events.request.fire(
                 request_type="WS",
