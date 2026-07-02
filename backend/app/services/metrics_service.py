@@ -68,7 +68,7 @@ def _query_influx_sync(window_seconds: int = 60):
             "proto_breakdown": proto_breakdown,
         }
 
-    except Exception as exc:
+    except Exception:
         return {
             "total_packets": 0,
             "total_bytes": 0,

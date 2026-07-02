@@ -1,5 +1,5 @@
 ﻿import pathlib
-
+import ast
 content = (
     '"""\n'
     "app/api/topology.py - GET /topology endpoint\n"
@@ -76,7 +76,7 @@ out = pathlib.Path("backend/app/api/topology.py")
 out.write_text(content, encoding="utf-8")
 print("topology.py written OK, size:", out.stat().st_size, "bytes")
 
-import ast
+
 
 ast.parse(content)
 print("topology.py: valid Python")

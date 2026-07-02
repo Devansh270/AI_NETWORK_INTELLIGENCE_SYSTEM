@@ -3,7 +3,6 @@ from app.core.limiter import limiter
 from app.core.security import verify_api_key
 from pydantic import BaseModel, field_validator
 from typing import List
-import os
 
 router = APIRouter(prefix="/predict", tags=["predictions"])
 

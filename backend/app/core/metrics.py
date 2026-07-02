@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import Counter, Gauge
 
 packets_captured_total = Counter(
     "packets_captured_total", "Total packets captured by Scapy agent"

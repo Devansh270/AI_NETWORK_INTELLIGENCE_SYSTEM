@@ -15,7 +15,6 @@ inference_scheduler.py reads "network_metrics" - this feeds it.
 import asyncio
 import json
 import logging
-import os
 from datetime import datetime, timezone
 
 logger = logging.getLogger("ainis.aggregator")

@@ -2,7 +2,6 @@ from datetime import datetime
 from sqlalchemy import String, Integer, Boolean, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
-from sqlalchemy.sql import func
 class RoutingRule(Base):
     __tablename__ = "routing_rules"
 
