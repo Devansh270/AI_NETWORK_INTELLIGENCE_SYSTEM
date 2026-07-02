@@ -8,8 +8,6 @@ from mininet.log import setLogLevel, info
 from mininet.cli import CLI
 import json
 import redis
-import threading
-import time
 
 class AINISTopology(Topo):
     """
@@ -142,7 +140,7 @@ def run_simulation(interactive=False):
         info(f"  Switch interface: {iface}\n")
 
     # Start all three traffic flows
-    threads = [
+    [
         generate_http_traffic(net, duration=300),
         # generate_db_traffic(net, duration=300),
         # generate_bulk_transfer(net, duration=300),
@@ -169,7 +167,6 @@ def get_link_interfaces(net):
     interfaces = {}
     for link in net.links:
         intf1 = link.intf1.name
-        intf2 = link.intf2.name
         interfaces[f"{link.intf1.node}-{link.intf2.node}"] = intf1
     return interfaces
 

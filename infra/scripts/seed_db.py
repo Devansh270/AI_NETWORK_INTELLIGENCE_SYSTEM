@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from app.models import Base, Alert, AlertSeverity, RoutingRule, NetworkEvent
+from app.models import Alert, AlertSeverity, RoutingRule, NetworkEvent
 DATABASE_URL = "postgresql://dev:devpass@localhost:5432/appdb"
 engine = create_engine(DATABASE_URL)
 

@@ -18,13 +18,12 @@ Usage:
 """
 
 import numpy as np
-import pandas as pd
 import joblib
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
-from backend.ml.data.feature_extractor import FeatureExtractor, FEATURE_COLS, LABEL_COL
+from backend.ml.data.feature_extractor import FeatureExtractor
 
 
 class DataLoader:

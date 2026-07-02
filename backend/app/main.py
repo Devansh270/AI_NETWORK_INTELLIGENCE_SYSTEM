@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
 import redis.asyncio as aioredis
 
 from app.api import alerts, metrics
@@ -16,8 +15,8 @@ from app.api.anomaly import router as anomaly_router
 from app.api.routing import router as routing_router
 from app.api.topology import router as topology_router
 from app.api.health_routes import router as health_router
-from app.core.db import engine, AsyncSessionLocal
-from app.core.influx import get_influx_write_api, get_influx_client
+from app.core.db import AsyncSessionLocal
+from app.core.influx import get_influx_client
 from app.core.config import get_settings
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -29,9 +28,10 @@ from app.core.exceptions import (
 )
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-
+from app.api.metrics_routes import router as metrics_router
+from app.api.telemetry_routes import router as telemetry_router
+from app.api.simulate_routes import router as simulate_router
 from app.core.limiter import limiter
-
 from app.core.logging_config import configure_logging
 
 log = configure_logging()
@@ -169,12 +169,7 @@ app.include_router(anomaly_router)
 app.include_router(routing_router)
 app.include_router(topology_router)
 app.include_router(health_router)
-from app.api.simulate_routes import router as simulate_router
-
 app.include_router(simulate_router)
-from app.api.metrics_routes import router as metrics_router
-from app.api.telemetry_routes import router as telemetry_router
-
 app.include_router(metrics_router)
 app.include_router(telemetry_router)
 

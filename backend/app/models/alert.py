@@ -1,7 +1,8 @@
 from sqlalchemy import Column, String, Integer, DateTime, Enum
 from app.models.base import Base
 from datetime import datetime
-import uuid, enum
+import uuid
+import enum
 
 
 

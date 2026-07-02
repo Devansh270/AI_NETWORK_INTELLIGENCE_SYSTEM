@@ -9,7 +9,6 @@ Reads: backend/ml/data/synthetic_traffic.csv
 Saves: backend/ml/anomaly/lstm_best.pt
 """
 
-import os
 import sys
 from pathlib import Path
 

@@ -15,7 +15,7 @@ import numpy as np
 import pytest
 
 from ml.anomaly.predictor import AnomalyPredictor
-from ml.congestion.predictor import CongestionPredictor, get_predictor
+from ml.congestion.predictor import get_predictor
 from ml.data.feature_extractor import FeatureExtractor
 
 

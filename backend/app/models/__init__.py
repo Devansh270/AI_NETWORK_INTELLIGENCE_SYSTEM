@@ -5,4 +5,4 @@ from app.models.routing_rule import RoutingRule
 from app.models.base import Base
 from app.models.prediction import Prediction
 
-__all__ = ["Base", "Alert", "AlertSeverity", "NetworkEvent", "Anomaly", "RoutingRule"]
+__all__ = ["Base", "Alert", "AlertSeverity", "SeverityEnum", "NetworkEvent", "Anomaly", "RoutingRule", "Prediction"]

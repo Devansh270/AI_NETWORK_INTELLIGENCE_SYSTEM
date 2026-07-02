@@ -14,7 +14,6 @@ Reads configuration from environment variables (loaded from infra/.env):
 
 import os
 import logging
-from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
