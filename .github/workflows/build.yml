@@ -1,0 +1,12 @@
+name: build
+on:
+  push:
+    branches: [main]
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          docker build -t ainis-backend:${{ github.sha }} backend/
+          docker build -t ainis-frontend:${{ github.sha }} frontend/
