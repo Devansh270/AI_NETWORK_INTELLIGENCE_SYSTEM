@@ -22,8 +22,8 @@ export default function MetricsPanel() {
   const [dataPoints, setDataPoints] = useState([])
 
   const {
-    lastMessage,
-    connectionStatus,
+    data: lastMessage,
+    connected,
   } = useWebSocket(WS_URL)
 
   const counterRef = useRef(0)
@@ -32,7 +32,7 @@ export default function MetricsPanel() {
     if (!lastMessage) return
 
     const parsed = lastMessage
-    if (!parsed) return
+    console.log(parsed);
 
     counterRef.current += 1
 
@@ -56,7 +56,7 @@ export default function MetricsPanel() {
       data-testid="metrics-panel"
       className="bg-gray-800 rounded-xl p-5"
     >
-      {connectionStatus === "disconnected" && (
+      {!connected && (
         <span>Disconnected</span>
       )}
 

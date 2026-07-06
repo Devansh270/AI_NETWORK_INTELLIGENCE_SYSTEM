@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "../services/config";
 
-const API_BASE = API_BASE_URL;
-
-if (!API_BASE) {
-    throw new Error("VITE_API_BASE_URL is not configured.");
-}
+const API_BASE = "/api";
 
 const PRIORITY_LABELS = {
   1: "Critical",

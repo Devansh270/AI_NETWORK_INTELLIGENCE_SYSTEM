@@ -1,78 +1,52 @@
 import { useEffect, useRef, useState } from "react";
 
-export function useWebSocket(url) {
-  // stores latest received message
-  const [lastMessage, setLastMessage] = useState(null);
-
-  // tracks websocket connection status
-  const [connectionStatus, setConnectionStatus] =
-    useState("connecting");
-
-  // stores last 60 messages
-  const [messageHistory, setMessageHistory] = useState([]);
-
-  // stores websocket instance
+export function useWebSocket(path) {
+  const [data, setData] = useState(null);
+  const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
 
   useEffect(() => {
-    // create websocket connection
-    const ws = new WebSocket(url);
+    let cancelled = false;
 
-    // store websocket in ref
+    // CHANGED THIS LINE
+    const url = path;
+
+    const ws = new WebSocket(url);
     wsRef.current = ws;
 
-    // websocket connected
     ws.onopen = () => {
-      console.log("WebSocket connected");
-      setConnectionStatus("connected");
-    };
-
-    // websocket error
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setConnectionStatus("disconnected");
-    };
-
-    // websocket closed
-    ws.onclose = () => {
-      console.log("WebSocket disconnected");
-      setConnectionStatus("disconnected");
-    };
-
-    // receive message
-    ws.onmessage = (event) => {
-      try {
-        // parse incoming JSON
-        const data = JSON.parse(event.data);
-
-        // update latest message
-        setLastMessage(data);
-
-        // keep only latest 60 messages
-        setMessageHistory((prev) => [
-          ...prev.slice(-59),
-          data,
-        ]);
-      } catch (error) {
-        console.warn(
-          "WebSocket message parse error:",
-          event.data
-        );
+      if (cancelled) {
+        ws.close();
+        return;
       }
+      console.log("WebSocket connected");
+      setConnected(true);
     };
 
-    // cleanup function
+    ws.onmessage = (event) => {
+      if (!cancelled) setData(JSON.parse(event.data));
+    };
+
+    ws.onclose = () => {
+      if (!cancelled) console.log("WebSocket disconnected");
+      setConnected(false);
+    };
+
+    ws.onerror = (e) => {
+      if (!cancelled) console.log("WebSocket error:", e);
+    };
+
     return () => {
+      cancelled = true;
       console.log("Closing WebSocket connection");
 
-      ws.close();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      } else if (ws.readyState === WebSocket.CONNECTING) {
+        ws.addEventListener("open", () => ws.close());
+      }
     };
-  }, [url]);
+  }, [path]);
 
-  // return hook values
-  return {
-    lastMessage,
-    connectionStatus,
-    messageHistory,
-  };
+  return { data, connected };
 }
