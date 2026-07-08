@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { mockAlerts, shouldUseMockData } from '../services/mockData';
 
 const SEVERITY_STYLES = {
   critical: "bg-red-500/15 text-red-400 border border-red-500/30",
@@ -30,14 +31,23 @@ export default function AlertsPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/alerts?page=${page}&page_size=${pageSize}`);
+        if (shouldUseMockData()) {
+          if (!cancelled) {
+            setAlerts(mockAlerts);
+            setTotal(mockAlerts.length);
+          }
+          return;
+        }
+
+        const skip = (page - 1) * pageSize;
+        const res = await fetch(`/api/alerts?skip=${skip}&limit=${pageSize}`);
         if (!res.ok) {
           throw new Error(`API error: ${res.status}`);
         }
         const data = await res.json();
         if (!cancelled) {
-          setAlerts(data.items || []);
-          setTotal(data.total || 0);
+          setAlerts(data.alerts || []);
+          setTotal(data.alerts?.length ? data.alerts.length + skip : 0);
         }
       } catch (err) {
         if (!cancelled) setError(err.message);
@@ -47,8 +57,13 @@ export default function AlertsPage() {
     }
 
     loadAlerts();
+    const timer = window.setInterval(() => {
+      loadAlerts();
+    }, 15000);
+
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, [page, pageSize]);
 

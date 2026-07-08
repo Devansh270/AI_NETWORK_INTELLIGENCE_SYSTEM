@@ -6,19 +6,22 @@ import DashboardPage from './pages/Dashboard'
 import TopologyPage from './pages/Topology'
 import AlertsPage from './pages/Alerts'
 import RoutingPage from './pages/Routing'
+import { RealtimeProvider } from './context/RealtimeProvider'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="topology" element={<TopologyPage />} />
-          <Route path="alerts" element={<AlertsPage />} />
-          <Route path="routing" element={<RoutingPage />} />
-        </Route>
-      </Routes>
+      <RealtimeProvider>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="topology" element={<TopologyPage />} />
+            <Route path="alerts" element={<AlertsPage />} />
+            <Route path="routing" element={<RoutingPage />} />
+          </Route>
+        </Routes>
+      </RealtimeProvider>
     </BrowserRouter>
   </React.StrictMode>
 )

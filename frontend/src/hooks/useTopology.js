@@ -1,80 +1,49 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { WS_BASE_URL } from "../services/config";
+import { useState, useEffect, useCallback } from "react";
+import { API_BASE_URL, WS_BASE_URL } from "../services/config";
+import { mockTopology, shouldUseMockData } from "../services/mockData";
+import { useWebSocket } from "./useWebSocket";
 
 export function useTopology() {
   const [topology, setTopology] = useState({ nodes: [], edges: [] });
   const [selectedNode, setSelectedNode] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState("connecting");
+  const { lastMessage, connectionStatus } = useWebSocket(`${WS_BASE_URL}/topology/ws`);
 
-  const wsRef = useRef(null);
-  const reconnectTimeout = useRef(null);
+  useEffect(() => {
+    if (lastMessage && typeof lastMessage === "object" && "nodes" in lastMessage) {
+      setTopology(lastMessage);
+    }
+  }, [lastMessage]);
 
-  const connect = useCallback(() => {
+  useEffect(() => {
     let cancelled = false;
 
-    const ws = new WebSocket(`${WS_BASE_URL}/topology/ws`);
-    wsRef.current = ws;
+    if (shouldUseMockData()) {
+      setTopology(mockTopology);
+      return () => {
+        cancelled = true;
+      };
+    }
 
-    ws.onopen = () => {
-      if (cancelled) {
-        ws.close();
-        return;
-      }
-
-      setConnectionStatus("connected");
-      console.log("[topology] WebSocket connected");
-    };
-
-    ws.onmessage = (event) => {
-  console.log("[topology] raw:", event.data);
-
-  if (cancelled) return;
-
-  try {
-    const data = JSON.parse(event.data);
-    console.log("[topology] parsed:", data);
-    setTopology(data);
-  } catch (e) {
-    console.error("[topology] Parse error:", e);
-  }
-};
-
-    ws.onerror = (err) => {
-      if (cancelled) return;
-
-      console.error("[topology] WS error:", err);
-      setConnectionStatus("error");
-    };
-
-    ws.onclose = () => {
-      if (cancelled) return;
-
-      setConnectionStatus("reconnecting");
-      reconnectTimeout.current = setTimeout(connect, 3000);
-    };
+    fetch(`${API_BASE_URL}/topology`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Topology request failed: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!cancelled && data && typeof data === "object" && "nodes" in data) {
+          setTopology(data);
+        }
+      })
+      .catch((error) => {
+        console.warn("[topology] REST fallback failed", error);
+      });
 
     return () => {
       cancelled = true;
-
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      } else if (ws.readyState === WebSocket.CONNECTING) {
-        ws.addEventListener("open", () => ws.close());
-      }
     };
   }, []);
-
-  useEffect(() => {
-    const cleanup = connect();
-
-    return () => {
-      if (cleanup) cleanup();
-
-      if (reconnectTimeout.current) {
-        clearTimeout(reconnectTimeout.current);
-      }
-    };
-  }, [connect]);
 
   const selectNode = useCallback((node) => {
     setSelectedNode((prev) => (prev?.id === node?.id ? null : node));

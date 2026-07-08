@@ -22,7 +22,7 @@ export default function MetricsPanel() {
   const [dataPoints, setDataPoints] = useState([])
 
   const {
-    data: lastMessage,
+    lastMessage,
     connected,
   } = useWebSocket(WS_URL)
 
@@ -32,8 +32,6 @@ export default function MetricsPanel() {
     if (!lastMessage) return
 
     const parsed = lastMessage
-    console.log(parsed);
-
     counterRef.current += 1
 
     const now = Date.now()
@@ -41,8 +39,8 @@ export default function MetricsPanel() {
     const newPoint = {
       ts: now,
       time: formatTime(now),
-      pps: parsed.packets_per_sec ?? counterRef.current,
-      bytes: parsed.bytes_per_sec ?? 0,
+      pps: parsed.packets_per_sec ?? parsed.pps ?? counterRef.current,
+      bytes: parsed.bytes_per_sec ?? parsed.bytes ?? 0,
     }
 
     setDataPoints(prev => {
