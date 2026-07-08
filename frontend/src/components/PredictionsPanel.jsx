@@ -60,34 +60,70 @@ export default function PredictionsPanel() {
   }, []);
 
   // Live updates from Redis via WebSocket
-  useEffect(() => {
+  // Live updates from Redis via WebSocket
+useEffect(() => {
+  let cancelled = false;
 
-    const ws = new WebSocket(WS_URL);
+  const ws = new WebSocket(WS_URL);
 
-    ws.onopen    = () => setWsStatus("live");
-    ws.onclose   = () => setWsStatus("disconnected");
-    ws.onerror   = () => setWsStatus("error");
+  ws.onopen = () => {
+    if (cancelled) {
+      ws.close();
+      return;
+    }
+    setWsStatus("live");
+  };
 
-    ws.onmessage = (e) => {
-      try {
-        const msg = JSON.parse(e.data);
-        const entry = {
-          model:     msg.model,
-          score:     msg.score,
-          is_alert:  msg.is_alert,
-          severity:  msg.severity ?? (msg.is_alert ? "warning" : "normal"),
-          timestamp: msg.ts,
-        };
+  ws.onclose = () => {
+    if (!cancelled) {
+      setWsStatus("disconnected");
+    }
+  };
 
-        if (msg.model === "xgboost-congestion") setCongestion(entry);
-        if (msg.model === "lstm-anomaly")       setAnomaly(entry);
+  ws.onerror = () => {
+    if (!cancelled) {
+      setWsStatus("error");
+    }
+  };
 
-        setHistory(prev => [entry, ...prev].slice(0, 20));
-      } catch {}
-    };
+  ws.onmessage = (e) => {
+    if (cancelled) return;
 
-    return () => ws.close();
-  }, []);
+    try {
+      const msg = JSON.parse(e.data);
+
+      const entry = {
+        model: msg.model,
+        score: msg.score,
+        is_alert: msg.is_alert,
+        severity: msg.severity ?? (msg.is_alert ? "warning" : "normal"),
+        timestamp: msg.ts,
+      };
+
+      if (msg.model === "xgboost-congestion") {
+        setCongestion(entry);
+      }
+
+      if (msg.model === "lstm-anomaly") {
+        setAnomaly(entry);
+      }
+
+      setHistory((prev) => [entry, ...prev].slice(0, 20));
+    } catch (err) {
+      console.error("WebSocket parse error:", err);
+    }
+  };
+
+  return () => {
+    cancelled = true;
+
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.close();
+    } else if (ws.readyState === WebSocket.CONNECTING) {
+      ws.addEventListener("open", () => ws.close());
+    }
+  };
+}, []);
 
   return (
     <div className="bg-white rounded-xl shadow p-5">

@@ -1,4 +1,4 @@
-﻿from locust import HttpUser, task, between
+from locust import HttpUser, task, between
 
 
 class DashboardUser(HttpUser):
@@ -15,3 +15,7 @@ class DashboardUser(HttpUser):
     @task(1)
     def get_alerts(self):
         self.client.get("/alerts")
+
+    @task(1)
+    def get_topology(self):
+        self.client.get("/topology")

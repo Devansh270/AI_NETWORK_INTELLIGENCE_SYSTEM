@@ -90,7 +90,8 @@ export default function TopologyGraph() {
     ctx.textAlign = "center";
     ctx.fillText(`${Math.round(util * 100)}%`, mx, my);
   }, []);
-
+  console.log("Topology state:", topology);
+  console.log("Graph data:", graphData);
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-xl overflow-hidden border border-gray-700" style={{ minHeight: "500px" }}>
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2">

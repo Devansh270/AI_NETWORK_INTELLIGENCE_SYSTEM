@@ -1,78 +1,106 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-export function useWebSocket(url) {
-  // stores latest received message
-  const [lastMessage, setLastMessage] = useState(null);
+const socketStores = new Map();
 
-  // tracks websocket connection status
-  const [connectionStatus, setConnectionStatus] =
-    useState("connecting");
+function getStore(path) {
+  if (!socketStores.has(path)) {
+    socketStores.set(path, {
+      socket: null,
+      data: null,
+      connected: false,
+      connectionStatus: "connecting",
+      messageHistory: [],
+      listeners: new Set(),
+    });
+  }
 
-  // stores last 60 messages
-  const [messageHistory, setMessageHistory] = useState([]);
+  return socketStores.get(path);
+}
 
-  // stores websocket instance
-  const wsRef = useRef(null);
+function notify(store) {
+  store.listeners.forEach((listener) => listener());
+}
+
+function resetStore(store) {
+  store.data = null;
+  store.connected = false;
+  store.connectionStatus = "connecting";
+  store.messageHistory = [];
+  if (store.socket) {
+    try {
+      store.socket.close();
+    } catch (error) {
+      console.warn("Failed to close WebSocket during reset", error);
+    }
+    store.socket = null;
+  }
+}
+
+export function useWebSocket(path) {
+  const store = useMemo(() => getStore(path), [path]);
+  const [, forceRender] = useState(0);
 
   useEffect(() => {
-    // create websocket connection
-    const ws = new WebSocket(url);
+    const listener = () => forceRender((value) => value + 1);
+    store.listeners.add(listener);
 
-    // store websocket in ref
-    wsRef.current = ws;
+    if (!store.socket) {
+      const ws = new WebSocket(path);
+      store.socket = ws;
+      store.connectionStatus = "connecting";
+      notify(store);
 
-    // websocket connected
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-      setConnectionStatus("connected");
-    };
+      ws.onopen = () => {
+        store.connected = true;
+        store.connectionStatus = "connected";
+        console.log("[useWebSocket] Connected to", path);
+        notify(store);
+      };
 
-    // websocket error
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      setConnectionStatus("disconnected");
-    };
+      ws.onmessage = (event) => {
+        let parsed = null;
+        try {
+          parsed = JSON.parse(event.data);
+        } catch (error) {
+          console.warn("WebSocket message was not valid JSON", error);
+          parsed = null;
+        }
 
-    // websocket closed
-    ws.onclose = () => {
-      console.log("WebSocket disconnected");
-      setConnectionStatus("disconnected");
-    };
+        store.data = parsed;
+        store.messageHistory = [...store.messageHistory, parsed].slice(-100);
+        notify(store);
+      };
 
-    // receive message
-    ws.onmessage = (event) => {
-      try {
-        // parse incoming JSON
-        const data = JSON.parse(event.data);
+      ws.onclose = () => {
+        store.connected = false;
+        store.connectionStatus = "disconnected";
+        console.log("[useWebSocket] Disconnected from", path);
+        notify(store);
+      };
 
-        // update latest message
-        setLastMessage(data);
+      ws.onerror = (e) => {
+        store.connected = false;
+        store.connectionStatus = "error";
+        console.error("[useWebSocket] Error on", path, e);
+        notify(store);
+      };
+    } else {
+      notify(store);
+    }
 
-        // keep only latest 60 messages
-        setMessageHistory((prev) => [
-          ...prev.slice(-59),
-          data,
-        ]);
-      } catch (error) {
-        console.warn(
-          "WebSocket message parse error:",
-          event.data
-        );
+    return () => {
+      store.listeners.delete(listener);
+      if (store.listeners.size === 0) {
+        resetStore(store);
       }
     };
+  }, [path, store]);
 
-    // cleanup function
-    return () => {
-      console.log("Closing WebSocket connection");
-
-      ws.close();
-    };
-  }, [url]);
-
-  // return hook values
   return {
-    lastMessage,
-    connectionStatus,
-    messageHistory,
+    data: store.data,
+    connected: store.connected,
+    lastMessage: store.data,
+    connectionStatus: store.connectionStatus,
+    messageHistory: store.messageHistory,
   };
 }
