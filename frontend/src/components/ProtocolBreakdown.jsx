@@ -66,22 +66,18 @@ export default function ProtocolBreakdown() {
   useEffect(() => {
     if (!lastMessage) return
 
-    if (lastMessage.protocols && typeof lastMessage.protocols === 'object') {
-      setCounts(lastMessage.protocols)
-    } else {
-      const proto = (lastMessage.protocol ?? 'OTHER').toUpperCase()
+    const proto = (lastMessage.protocol ?? 'OTHER').toUpperCase()
 
-      setCounts(prev => {
-        const key = Object.prototype.hasOwnProperty.call(prev, proto)
-          ? proto
-          : 'OTHER'
+    setCounts(prev => {
+      const key = Object.prototype.hasOwnProperty.call(prev, proto)
+        ? proto
+        : 'OTHER'
 
-        return {
-          ...prev,
-          [key]: prev[key] + 1,
-        }
-      })
-    }
+      return {
+        ...prev,
+        [key]: prev[key] + 1,
+      }
+    })
   }, [lastMessage])
 
   const total = useMemo(

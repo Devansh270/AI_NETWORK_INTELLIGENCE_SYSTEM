@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { createMockMetricsStream, createMockTopologyStream, shouldUseMockData } from '../services/mockData';
 
 const socketStores = new Map();
 
@@ -46,64 +45,42 @@ export function useWebSocket(path) {
     store.listeners.add(listener);
 
     if (!store.socket) {
-      if (shouldUseMockData()) {
-        console.log("[useWebSocket] Mock mode enabled for", path);
+      const ws = new WebSocket(path);
+      store.socket = ws;
+      store.connectionStatus = "connecting";
+      notify(store);
+
+      ws.onopen = () => {
         store.connected = true;
         store.connectionStatus = "connected";
         notify(store);
+      };
 
-        const mockStream = path.includes('/topology/ws')
-          ? createMockTopologyStream((payload) => {
-              store.data = payload;
-              store.messageHistory = [...store.messageHistory, payload].slice(-100);
-              notify(store);
-            })
-          : createMockMetricsStream((payload) => {
-              store.data = payload;
-              store.messageHistory = [...store.messageHistory, payload].slice(-100);
-              notify(store);
-            });
+      ws.onmessage = (event) => {
+        let parsed = null;
+        try {
+          parsed = JSON.parse(event.data);
+        } catch (error) {
+          console.warn("WebSocket message was not valid JSON", error);
+          parsed = null;
+        }
 
-        store.socket = { close: () => mockStream() };
+        store.data = parsed;
+        store.messageHistory = [...store.messageHistory, parsed].slice(-100);
         notify(store);
-      } else {
-        const ws = new WebSocket(path);
-        store.socket = ws;
-        store.connectionStatus = "connecting";
+      };
+
+      ws.onclose = () => {
+        store.connected = false;
+        store.connectionStatus = "disconnected";
         notify(store);
+      };
 
-        ws.onopen = () => {
-          store.connected = true;
-          store.connectionStatus = "connected";
-          notify(store);
-        };
-
-        ws.onmessage = (event) => {
-          let parsed = null;
-          try {
-            parsed = JSON.parse(event.data);
-          } catch (error) {
-            console.warn("WebSocket message was not valid JSON", error);
-            parsed = null;
-          }
-
-          store.data = parsed;
-          store.messageHistory = [...store.messageHistory, parsed].slice(-100);
-          notify(store);
-        };
-
-        ws.onclose = () => {
-          store.connected = false;
-          store.connectionStatus = "disconnected";
-          notify(store);
-        };
-
-        ws.onerror = () => {
-          store.connected = false;
-          store.connectionStatus = "error";
-          notify(store);
-        };
-      }
+      ws.onerror = () => {
+        store.connected = false;
+        store.connectionStatus = "error";
+        notify(store);
+      };
     } else {
       notify(store);
     }

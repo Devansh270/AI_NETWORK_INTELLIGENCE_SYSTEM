@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { API_BASE_URL, WS_BASE_URL } from "../services/config";
-import { mockTopology, shouldUseMockData } from "../services/mockData";
 import { useWebSocket } from "./useWebSocket";
 
 export function useTopology() {
@@ -16,13 +15,6 @@ export function useTopology() {
 
   useEffect(() => {
     let cancelled = false;
-
-    if (shouldUseMockData()) {
-      setTopology(mockTopology);
-      return () => {
-        cancelled = true;
-      };
-    }
 
     fetch(`${API_BASE_URL}/topology`)
       .then((response) => {

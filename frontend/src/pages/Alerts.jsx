@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { mockAlerts, shouldUseMockData } from '../services/mockData';
 
 const SEVERITY_STYLES = {
   critical: "bg-red-500/15 text-red-400 border border-red-500/30",
@@ -31,14 +30,6 @@ export default function AlertsPage() {
       setLoading(true);
       setError(null);
       try {
-        if (shouldUseMockData()) {
-          if (!cancelled) {
-            setAlerts(mockAlerts);
-            setTotal(mockAlerts.length);
-          }
-          return;
-        }
-
         const skip = (page - 1) * pageSize;
         const res = await fetch(`/api/alerts?skip=${skip}&limit=${pageSize}`);
         if (!res.ok) {
