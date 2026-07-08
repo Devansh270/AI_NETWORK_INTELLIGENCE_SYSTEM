@@ -53,6 +53,7 @@ export function useWebSocket(path) {
       ws.onopen = () => {
         store.connected = true;
         store.connectionStatus = "connected";
+        console.log("[useWebSocket] Connected to", path);
         notify(store);
       };
 
@@ -73,12 +74,14 @@ export function useWebSocket(path) {
       ws.onclose = () => {
         store.connected = false;
         store.connectionStatus = "disconnected";
+        console.log("[useWebSocket] Disconnected from", path);
         notify(store);
       };
 
-      ws.onerror = () => {
+      ws.onerror = (e) => {
         store.connected = false;
         store.connectionStatus = "error";
+        console.error("[useWebSocket] Error on", path, e);
         notify(store);
       };
     } else {

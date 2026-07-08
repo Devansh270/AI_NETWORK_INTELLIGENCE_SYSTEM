@@ -76,7 +76,7 @@ describe('useWebSocket', () => {
   })
 
   it('appends to messageHistory on each message', async () => {
-    const { result } = renderHook(() => useWebSocket('ws://localhost:8000/ws/metrics'))
+    const { result, unmount } = renderHook(() => useWebSocket('ws://localhost:8000/ws/metrics-append-test'))
 
     await act(async () => {
       await new Promise(r => setTimeout(r, 10))
@@ -86,6 +86,7 @@ describe('useWebSocket', () => {
     })
 
     expect(result.current.messageHistory).toHaveLength(2)
+    unmount()
   })
 
   it('does not crash on malformed JSON message', async () => {
